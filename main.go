@@ -7,6 +7,7 @@ import (
 	"time"
 	"reflect"
 	"strings"
+	"os"
 
 	"github.com/mafredri/cdp"
 	"github.com/mafredri/cdp/devtool"
@@ -250,7 +251,9 @@ func run(timeout time.Duration) error {
 		fmt.Printf(" ERrr : %s\n", err)
 	}
 
-	fmt.Printf("HTML: %s\n", strings.Split(strings.Split(result.OuterHTML, "\n")[0], ">")[1])
+	name := strings.Split(strings.Split(result.OuterHTML, "\n")[0], ">")[1]
+
+	fmt.Printf("HTML: %s\n", name)
 
 	message, err = c.DOM.QuerySelector(ctx, &dom.QuerySelectorArgs{
 		NodeID: doc.Root.NodeID,
@@ -274,7 +277,51 @@ func run(timeout time.Duration) error {
 
 	out := strings.TrimLeft(strings.TrimRight(result.OuterHTML,"</a>"),"<a>")
     fmt.Println(strings.Split(out, ">")[1])
+
+	textFile := "Commits" + next[0:6] + ".txt"
+
+	f, err := os.Create("./Commits/" + textFile)
+
+    if err != nil {
+        return err
+    }
+
+    defer f.Close()
+
+    _, err2 := f.WriteString(name)
+
+    if err2 != nil {
+        return err2
+    }
+
+    fmt.Println("done")
+
 	next = strings.Split(out, ">")[1]
+
+	// pdfArgs := page.NewPrintToPDFArgs().
+	// 	SetTransferMode("ReturnAsStream") // Request stream.
+	// pdfData, err := c.Page.PrintToPDF(ctx, pdfArgs)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// sr := c.NewIOStreamReader(ctx, *pdfData.Stream)
+	// r := bufio.NewReader(sr)
+
+	// // Write to file in ~r.Size() chunks.
+	// _, err = r.WriteTo(f)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// err = f.Close()
+	// if err != nil {
+	// 	return err
+	// }
+
+	// fmt.Printf("Saved PDF: %s\n", pdfName)
+
+
 	}
 	
 	// Saving
