@@ -16,7 +16,7 @@ import (
 )
 
 func main() {
-	err := run(5 * time.Second)
+	err := run(500 * time.Second)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -137,8 +137,11 @@ func run(timeout time.Duration) error {
 		// fmt.Println("var1 = ", reflect.TypeOf(att.Attributes)) 
 	  }
 	  
+	  MainLink :="https://chromium.googlesource.com/chromiumos/platform/tast-tests/+"
+	  Sub := "/refs/heads/main"
 
-	  navArgs = page.NewNavigateArgs("https://chromium.googlesource.com/chromiumos/platform/tast-tests/+/refs/heads/main").
+	  Link := MainLink + Sub
+	  navArgs = page.NewNavigateArgs(Link).
 	  SetReferrer("https://google.com")
 
 	  nav, err = c.Page.Navigate(ctx, navArgs)
@@ -198,8 +201,82 @@ func run(timeout time.Duration) error {
 		fmt.Printf(" ERrr : %s\n", err)
 	}
 
-	fmt.Printf("HTML: %s\n", result.OuterHTML)
+	// fmt.Printf("HTML: %s\n", result.OuterHTML)
 
+	out := strings.TrimLeft(strings.TrimRight(result.OuterHTML,"</a>"),"<a>")
+    fmt.Println(strings.Split(out, ">")[1])
+	next := strings.Split(out, ">")[1]
+	for i := 1; i < 500; i++ {
+	MainLink :="https://chromium.googlesource.com/chromiumos/platform/tast-tests/+/"
+
+	  Link := MainLink + next
+	  navArgs = page.NewNavigateArgs(Link).
+	  SetReferrer("https://google.com")
+
+	  nav, err = c.Page.Navigate(ctx, navArgs)
+	if err != nil {
+		return err
+	}
+
+	// Wait until we have a DOMContentEventFired event.
+	if _, err = domContent.Recv(); err != nil {
+		return err
+	}
+
+	fmt.Printf("Page loaded with frame ID: %s\n", nav.FrameID)
+
+
+	doc, err = c.DOM.GetDocument(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	// Get the outer HTML for the page.
+	message, err := c.DOM.QuerySelector(ctx, &dom.QuerySelectorArgs{
+		NodeID: doc.Root.NodeID,
+		Selector: ".MetadataMessage",
+	})
+	if err != nil {
+		return err
+	}
+
+
+	fmt.Printf("HTML: %d\n", message.NodeID)
+
+	result, err = c.DOM.GetOuterHTML(ctx, &dom.GetOuterHTMLArgs{
+		NodeID: &message.NodeID,
+	})
+	if err != nil {
+		fmt.Printf(" ERrr : %s\n", err)
+	}
+
+	fmt.Printf("HTML: %s\n", strings.Split(strings.Split(result.OuterHTML, "\n")[0], ">")[1])
+
+	message, err = c.DOM.QuerySelector(ctx, &dom.QuerySelectorArgs{
+		NodeID: doc.Root.NodeID,
+		Selector: "a[href*='/chromiumos/platform/tast-tests/+/" + next + "%5E']",
+	})
+	if err != nil {
+		return err
+	}
+
+
+	fmt.Printf("HTML: %d\n", message.NodeID)
+
+	result, err = c.DOM.GetOuterHTML(ctx, &dom.GetOuterHTMLArgs{
+		NodeID: &message.NodeID,
+	})
+	if err != nil {
+		fmt.Printf(" ERrrdghdfgh : %s\n", err)
+	}
+
+	// fmt.Printf("HTML: %s\n", result.OuterHTML)
+
+	out := strings.TrimLeft(strings.TrimRight(result.OuterHTML,"</a>"),"<a>")
+    fmt.Println(strings.Split(out, ">")[1])
+	next = strings.Split(out, ">")[1]
+	}
+	
 	// Saving
 
 	// // Capture a screenshot of the current page.
