@@ -3,11 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
-	"reflect"
 	"strings"
 	"os"
+	"flag"
 
 	"github.com/mafredri/cdp"
 	"github.com/mafredri/cdp/devtool"
@@ -16,19 +15,42 @@ import (
 	"github.com/mafredri/cdp/rpcc"
 )
 
+type Parameters struct {
+	URL, branch, folder string
+	commitNum int
+	timeout time.Duration
+}
+
 func main() {
-	err := run(500 * time.Second)
+	var commitNum int
+	var url string
+	var branch string
+	var timeout time.Duration
+	var folder string
+	flag.IntVar(&commitNum, "commitNum", 10, "the count of items")
+	flag.StringVar(&url, "url", "https://chromium.googlesource.com/chromiumos/platform/tast-tests/", "Repository URL")
+	flag.StringVar(&branch, "branch", "main", "Branch Name")
+	flag.DurationVar(&timeout, "timeout", 5 * time.Second, "Maximum time program to run")
+	flag.StringVar(&folder, "folder", "./Commits/", "Folder Path")
+	flag.Parse()
+
+	var para = Parameters{commitNum: commitNum, URL: url, branch: branch, timeout: timeout, folder: folder}
+
+	err := run(para)
 	if err != nil {
-		log.Fatal(err)
+		// log.Fatal(err)
+		fmt.Println(err)
 	}
 }
 
-func run(timeout time.Duration) error {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+func run(parameters Parameters) error {
+	// Context
+	ctx, cancel := context.WithTimeout(context.Background(), parameters.timeout)
 	defer cancel()
 
+	// Port used
 	// Use the DevTools HTTP/JSON API to manage targets (e.g. pages, webworkers).
-	devt := devtool.New("http://127.0.0.1:9221")
+	devt := devtool.New("http://127.0.0.1:9222")
 	pt, err := devt.Get(ctx, devtool.Page)
 	if err != nil {
 		pt, err = devt.Create(ctx)
@@ -37,6 +59,7 @@ func run(timeout time.Duration) error {
 		}
 	}
 
+	// Connection
 	// Initiate a new RPC connection to the Chrome DevTools Protocol target.
 	conn, err := rpcc.DialContext(ctx, pt.WebSocketDebuggerURL)
 	if err != nil {
@@ -59,27 +82,39 @@ func run(timeout time.Duration) error {
 		return err
 	}
 
+	// Navigating to main site
 	// Create the Navigate arguments with the optional Referrer field set.
-	navArgs := page.NewNavigateArgs("https://chromium.googlesource.com/chromiumos/platform/tast-tests/").
-		SetReferrer("https://google.com")
-	nav, err := c.Page.Navigate(ctx, navArgs)
+
+	OpenDoc := func (URL string, Referrer string) (*dom.GetDocumentReply, error) {
+		navArgs := page.NewNavigateArgs(URL).
+			SetReferrer(Referrer)
+	
+		nav, err := c.Page.Navigate(ctx, navArgs)
+		if err != nil {
+			return nil, err
+		}
+	
+		// Wait until we have a DOMContentEventFired event.
+		if _, err = domContent.Recv(); err != nil {
+			return nil, err
+		}
+	
+		fmt.Printf("Page loaded with frame ID: %s\n", nav.FrameID)
+	
+	
+		doc, err := c.DOM.GetDocument(ctx, nil)
+		
+		return doc, err
+	}
+
+	
+	Link := parameters.URL
+	doc, err := OpenDoc(Link, "https://google.com")
 	if err != nil {
 		return err
 	}
 
-	// Wait until we have a DOMContentEventFired event.
-	if _, err = domContent.Recv(); err != nil {
-		return err
-	}
-
-	fmt.Printf("Page loaded with frame ID: %s\n", nav.FrameID)
-
-	// Fetch the document root node. We can pass nil here
-	// since this method only takes optional arguments.
-	doc, err := c.DOM.GetDocument(ctx, nil)
-	if err != nil {
-		return err
-	}
+	// Get link for main branch
 
 	// Get the outer HTML for the page.
 	result, err := c.DOM.GetOuterHTML(ctx, &dom.GetOuterHTMLArgs{
@@ -89,28 +124,23 @@ func run(timeout time.Duration) error {
 		return err
 	}
 
-	if result == nil {
+	searchId,err := c.DOM.PerformSearch(ctx, &dom.PerformSearchArgs{
+		Query: parameters.branch,
+	})
+	if err != nil {
 		return err
 	}
 
-	// fmt.Printf("HTML: %s\n", result.OuterHTML)
-	// result, err = c.DOM.GetElementsByTagName('a')
-
-	searchId, resultCount := c.DOM.PerformSearch(ctx, &dom.PerformSearchArgs{
-		Query: "main",
-	})
-
-	
-	fmt.Println("var1 = ", reflect.TypeOf(searchId.SearchID)) 
-    fmt.Println("var2 = ", reflect.TypeOf(resultCount)) 
-
-	nodeIds, nodeerr := c.DOM.GetSearchResults(ctx, &dom.GetSearchResultsArgs{
+	nodeIds,err := c.DOM.GetSearchResults(ctx, &dom.GetSearchResultsArgs{
 		SearchID: searchId.SearchID,
 		FromIndex: 0,
 		ToIndex: searchId.ResultCount,
 	})
+	if err != nil {
+		return err
+	}
 
-	fmt.Println("var1 = ", reflect.TypeOf(nodeerr))
+	var branch string
 
 	for _, value := range nodeIds.NodeIDs {
 		// fmt.Printf("- %d\n", value)
@@ -118,169 +148,112 @@ func run(timeout time.Duration) error {
 			NodeID: &value,
 		})
 		if err != nil {
-			fmt.Printf(" ERrr : %s\n", err)
+			fmt.Printf("Err : %s\n", err)
+			continue;
 		}
 	
-		fmt.Printf("HTML: %s\n", result.OuterHTML)
+		fmt.Printf("First Link: %s\n", result.OuterHTML)
 		att, err := c.DOM.GetAttributes(ctx, &dom.GetAttributesArgs{
 			NodeID: value,
 		})
 
-		if err != nil {
-			fmt.Printf(" ERrr : %s\n", err)
-		}
-		if len(att.Attributes) == 0 {
+		if err != nil|| len(att.Attributes) == 0{
 			continue;
 		}
 
-		fmt.Println("HTML: ", att.Attributes)
-		fmt.Printf("HTML: %s", att.Attributes[len(att.Attributes)-1])
-		// fmt.Println("var1 = ", reflect.TypeOf(att.Attributes)) 
+		branch = att.Attributes[len(att.Attributes)-1]
+		break;
 	  }
+	fmt.Println("Branch", branch)
 	  
-	  MainLink :="https://chromium.googlesource.com/chromiumos/platform/tast-tests/+"
-	  Sub := "/refs/heads/main"
+	Link ="https://chromium.googlesource.com" + branch
 
-	  Link := MainLink + Sub
-	  navArgs = page.NewNavigateArgs(Link).
-	  SetReferrer("https://google.com")
-
-	  nav, err = c.Page.Navigate(ctx, navArgs)
+	doc, err = OpenDoc(Link, "https://google.com")
 	if err != nil {
 		return err
 	}
 
-	// Wait until we have a DOMContentEventFired event.
-	if _, err = domContent.Recv(); err != nil {
-		return err
+	QuerySelector := func (NodeID dom.NodeID, Selector string) (dom.NodeID, error) {
+		message, err := c.DOM.QuerySelector(ctx, &dom.QuerySelectorArgs{
+			NodeID: NodeID,
+			Selector: Selector,
+		})
+	
+		return message.NodeID, err
 	}
 
-	fmt.Printf("Page loaded with frame ID: %s\n", nav.FrameID)
+	QueryHTML := func (NodeID dom.NodeID, Selector string) (string, error) {
+		messageID, err := QuerySelector(NodeID, Selector)
 
+		if err != nil {
+			return "", err
+		}
 
-	doc, err = c.DOM.GetDocument(ctx, nil)
-	if err != nil {
-		return err
+		result, err = c.DOM.GetOuterHTML(ctx, &dom.GetOuterHTMLArgs{
+			NodeID: &messageID,
+		})
+
+		return result.OuterHTML, err
+
 	}
 
-	// Get the outer HTML for the page.
-	message, err := c.DOM.QuerySelector(ctx, &dom.QuerySelectorArgs{
-		NodeID: doc.Root.NodeID,
-		Selector: ".MetadataMessage",
-	})
-	if err != nil {
-		return err
+	html, err := QueryHTML(doc.Root.NodeID, ".u-monospace.Metadata td")
+
+		if err != nil {
+			return err
+		}
+
+	next := strings.TrimLeft(strings.TrimRight(html,"</td>"), "<td>")
+	fmt.Println("Next fuck", next)
+
+
+	//OKAY
+
+	//From Next Commit
+
+	for i := 1; i <= parameters.commitNum; i++ {
+		Link :="https://chromium.googlesource.com/chromiumos/platform/tast-tests/+/" + next
+
+		doc, err = OpenDoc(Link, "https://google.com")
+		if err != nil {
+			return err
+		}
+
+		html, err = QueryHTML(doc.Root.NodeID, ".MetadataMessage")
+
+		if err != nil {
+			return err
+		}
+
+		name := strings.Split(strings.Split(html, "\n")[0], ">")[1]
+
+		fmt.Printf("Commit Message: %s\n", name)
+
+		html, err = QueryHTML(doc.Root.NodeID, "a[href*='/chromiumos/platform/tast-tests/+/" + next + "%5E']")
+
+		if err != nil {
+			return err
+		}
+
+		out := strings.TrimLeft(strings.TrimRight(html,"</a>"),"<a>")
+		
+		textFile := parameters.folder + "./Commits" + next[0:6] + ".txt"
+		err = CreateFile(textFile, name)
+
+		if err != nil {
+			return err
+		}
+
+		next = strings.Split(out, ">")[1]
+		fmt.Println("Next ", next)
+
 	}
+	return nil
+}
 
 
-	fmt.Printf("HTML: %d\n", message.NodeID)
-
-	result, err = c.DOM.GetOuterHTML(ctx, &dom.GetOuterHTMLArgs{
-		NodeID: &message.NodeID,
-	})
-	if err != nil {
-		fmt.Printf(" ERrr : %s\n", err)
-	}
-
-	fmt.Printf("HTML: %s\n", strings.Split(strings.Split(result.OuterHTML, "\n")[0], ">")[1])
-
-	message, err = c.DOM.QuerySelector(ctx, &dom.QuerySelectorArgs{
-		NodeID: doc.Root.NodeID,
-		Selector: "a[href*='/chromiumos/platform/tast-tests/+/refs/heads/main%5E']",
-	})
-	if err != nil {
-		return err
-	}
-
-
-	fmt.Printf("HTML: %d\n", message.NodeID)
-
-	result, err = c.DOM.GetOuterHTML(ctx, &dom.GetOuterHTMLArgs{
-		NodeID: &message.NodeID,
-	})
-	if err != nil {
-		fmt.Printf(" ERrr : %s\n", err)
-	}
-
-	// fmt.Printf("HTML: %s\n", result.OuterHTML)
-
-	out := strings.TrimLeft(strings.TrimRight(result.OuterHTML,"</a>"),"<a>")
-    fmt.Println(strings.Split(out, ">")[1])
-	next := strings.Split(out, ">")[1]
-	for i := 1; i < 500; i++ {
-	MainLink :="https://chromium.googlesource.com/chromiumos/platform/tast-tests/+/"
-
-	  Link := MainLink + next
-	  navArgs = page.NewNavigateArgs(Link).
-	  SetReferrer("https://google.com")
-
-	  nav, err = c.Page.Navigate(ctx, navArgs)
-	if err != nil {
-		return err
-	}
-
-	// Wait until we have a DOMContentEventFired event.
-	if _, err = domContent.Recv(); err != nil {
-		return err
-	}
-
-	fmt.Printf("Page loaded with frame ID: %s\n", nav.FrameID)
-
-
-	doc, err = c.DOM.GetDocument(ctx, nil)
-	if err != nil {
-		return err
-	}
-
-	// Get the outer HTML for the page.
-	message, err := c.DOM.QuerySelector(ctx, &dom.QuerySelectorArgs{
-		NodeID: doc.Root.NodeID,
-		Selector: ".MetadataMessage",
-	})
-	if err != nil {
-		return err
-	}
-
-
-	fmt.Printf("HTML: %d\n", message.NodeID)
-
-	result, err = c.DOM.GetOuterHTML(ctx, &dom.GetOuterHTMLArgs{
-		NodeID: &message.NodeID,
-	})
-	if err != nil {
-		fmt.Printf(" ERrr : %s\n", err)
-	}
-
-	name := strings.Split(strings.Split(result.OuterHTML, "\n")[0], ">")[1]
-
-	fmt.Printf("HTML: %s\n", name)
-
-	message, err = c.DOM.QuerySelector(ctx, &dom.QuerySelectorArgs{
-		NodeID: doc.Root.NodeID,
-		Selector: "a[href*='/chromiumos/platform/tast-tests/+/" + next + "%5E']",
-	})
-	if err != nil {
-		return err
-	}
-
-
-	fmt.Printf("HTML: %d\n", message.NodeID)
-
-	result, err = c.DOM.GetOuterHTML(ctx, &dom.GetOuterHTMLArgs{
-		NodeID: &message.NodeID,
-	})
-	if err != nil {
-		fmt.Printf(" ERrrdghdfgh : %s\n", err)
-	}
-
-	// fmt.Printf("HTML: %s\n", result.OuterHTML)
-
-	out := strings.TrimLeft(strings.TrimRight(result.OuterHTML,"</a>"),"<a>")
-    fmt.Println(strings.Split(out, ">")[1])
-
-	textFile := "Commits" + next[0:6] + ".txt"
-
-	f, err := os.Create("./Commits/" + textFile)
+func CreateFile(fileName string, message string) error {
+	f, err := os.Create(fileName)
 
     if err != nil {
         return err
@@ -288,88 +261,11 @@ func run(timeout time.Duration) error {
 
     defer f.Close()
 
-    _, err2 := f.WriteString(name)
+    _, err2 := f.WriteString(message)
 
     if err2 != nil {
         return err2
     }
-
-    fmt.Println("done")
-
-	next = strings.Split(out, ">")[1]
-
-	// pdfArgs := page.NewPrintToPDFArgs().
-	// 	SetTransferMode("ReturnAsStream") // Request stream.
-	// pdfData, err := c.Page.PrintToPDF(ctx, pdfArgs)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// sr := c.NewIOStreamReader(ctx, *pdfData.Stream)
-	// r := bufio.NewReader(sr)
-
-	// // Write to file in ~r.Size() chunks.
-	// _, err = r.WriteTo(f)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// err = f.Close()
-	// if err != nil {
-	// 	return err
-	// }
-
-	// fmt.Printf("Saved PDF: %s\n", pdfName)
-
-
-	}
-	
-	// Saving
-
-	// // Capture a screenshot of the current page.
-	// screenshotName := "screenshot.jpg"
-	// screenshotArgs := page.NewCaptureScreenshotArgs().
-	// 	SetFormat("jpeg").
-	// 	SetQuality(80)
-	// screenshot, err := c.Page.CaptureScreenshot(ctx, screenshotArgs)
-	// if err != nil {
-	// 	return err
-	// }
-	// if err = ioutil.WriteFile(screenshotName, screenshot.Data, 0644); err != nil {
-	// 	return err
-	// }
-
-	// fmt.Printf("Saved screenshot: %s\n", screenshotName)
-
-	// pdfName := "page.pdf"
-	// f, err := os.Create(pdfName)
-	// if err != nil {
-	// 	return err
-	// }
-	// //fmt.Printf("Create file: %s\n", screenshotName)
-
-	// pdfArgs := page.NewPrintToPDFArgs().
-	// 	SetTransferMode("ReturnAsStream") // Request stream.
-	// pdfData, err := c.Page.PrintToPDF(ctx, pdfArgs)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// sr := c.NewIOStreamReader(ctx, *pdfData.Stream)
-	// r := bufio.NewReader(sr)
-
-	// // Write to file in ~r.Size() chunks.
-	// _, err = r.WriteTo(f)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// err = f.Close()
-	// if err != nil {
-	// 	return err
-	// }
-
-	// fmt.Printf("Saved PDF: %s\n", pdfName)
-
 	return nil
+
 }
