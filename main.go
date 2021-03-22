@@ -7,6 +7,9 @@ import (
 	"strings"
 	"os"
 	"flag"
+	"sort"
+	"encoding/csv"
+	"strconv"
 
 	"github.com/mafredri/cdp"
 	"github.com/mafredri/cdp/devtool"
@@ -20,6 +23,14 @@ type Parameters struct {
 	commitNum int
 	timeout time.Duration
 }
+
+type Contributor struct {
+	name string
+	created int `default:0`  
+	reviewed int`default:0`
+}
+
+var contributors []Contributor
 
 func main() {
 	var commitNum int
@@ -210,6 +221,8 @@ func run(parameters Parameters) error {
 	//OKAY
 
 	//From Next Commit
+	var authors []string
+	var reviewers []string
 
 	for i := 1; i <= parameters.commitNum; i++ {
 		Link :="https://chromium.googlesource.com/chromiumos/platform/tast-tests/+/" + next
@@ -226,8 +239,23 @@ func run(parameters Parameters) error {
 		}
 
 		name := strings.Split(strings.Split(html, "\n")[0], ">")[1]
+		completeMessage := strings.Split(html, "\n")
 
-		fmt.Printf("Commit Message: %s\n", name)
+		r := strings.NewReplacer("&lt;","<", "&gt;", ">")
+
+		// fmt.Println("Commit Message:\n", completeMessage)
+
+		for _, value := range completeMessage { 
+			if strings.Contains(value, "Tested-by:") {
+				fmt.Println(strings.TrimLeft(r.Replace(value), "Tested-by:")[1:])
+				authors = append(authors, strings.TrimLeft(r.Replace(value), "Tested-by:")[1:])
+			}
+
+			if strings.Contains(value, "Reviewed-by:") {
+				fmt.Println(strings.TrimLeft(r.Replace(value), "Reviewed-by:")[1:])
+				reviewers = append(reviewers, strings.TrimLeft(r.Replace(value), "Reviewed-by:")[1:])
+			}
+		} 
 
 		html, err = QueryHTML(doc.Root.NodeID, "a[href*='/chromiumos/platform/tast-tests/+/" + next + "%5E']")
 
@@ -248,6 +276,125 @@ func run(parameters Parameters) error {
 		fmt.Println("Next ", next)
 
 	}
+	sort.Sort(sort.StringSlice(authors))
+    fmt.Println(authors)
+	
+	sort.Sort(sort.StringSlice(reviewers))
+    fmt.Println(reviewers)
+
+	var i,j int
+
+	i =0
+	j = 0
+
+	last := Contributor{ 
+		name: "",
+	}
+
+	if (authors[0] > reviewers[0]) {
+		last.name = reviewers[0]
+	} else {
+		last.name = authors[0]
+	}
+
+	file, err := os.Create("Contributors.csv")
+
+    if err != nil {
+        return err
+    }
+
+    defer file.Close()
+
+	writer := csv.NewWriter(file)
+
+	defer writer.Flush()
+
+
+	// write := func (last Contributor) {
+		
+	// }
+
+
+	for i < len(authors) && j < len(reviewers) {
+		if (authors[i] < reviewers[j]) {
+			
+			if (last.name == authors[i]) {
+				last.created++
+			} else {
+				// write
+				writer.Write([]string{
+					last.name,
+					strconv.Itoa(last.created),
+					strconv.Itoa(last.reviewed),
+				})
+				last.name = authors[i]
+				last.created = 1
+				last.reviewed = 0
+			}
+			
+			i++
+		} else if (authors[i] > reviewers[j]) {
+			
+			if (last.name == reviewers[j]) {
+				last.reviewed++
+			} else {
+				// write
+				writer.Write([]string{
+					last.name,
+					strconv.Itoa(last.created),
+					strconv.Itoa(last.reviewed),
+				})
+				last.name = reviewers[j]
+				last.created = 0
+				last.reviewed = 1
+			}
+			j++
+		} else {
+			if (last.name == authors[i]) {
+				last.created++
+				last.reviewed++
+			} else {
+				writer.Write([]string{
+					last.name,
+					strconv.Itoa(last.created),
+					strconv.Itoa(last.reviewed),
+				})
+				last.name = reviewers[j]
+				last.created = 1
+				last.reviewed = 1
+			}
+			i++
+			j++
+		}
+	} 
+
+	for i < len(authors) {
+		last.name = authors[i]
+		last.created = 1
+		last.reviewed = 0
+		//Write
+		writer.Write([]string{
+			last.name,
+			strconv.Itoa(last.created),
+			strconv.Itoa(last.reviewed),
+		})
+		i++
+	}
+
+	for j < len(reviewers) {
+		last.name = reviewers[j]
+		last.created = 0
+		last.reviewed = 1
+		//Write
+		writer.Write([]string{
+			last.name,
+			strconv.Itoa(last.created),
+			strconv.Itoa(last.reviewed),
+		})
+		j++
+	}
+
+
 	return nil
 }
 
