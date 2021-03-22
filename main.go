@@ -19,7 +19,7 @@ import (
 )
 
 type Parameters struct {
-	URL, branch, folder string
+	URL, branch, folder, file string
 	commitNum int
 	timeout time.Duration
 }
@@ -38,18 +38,19 @@ func main() {
 	var branch string
 	var timeout time.Duration
 	var folder string
+	var file string
 	flag.IntVar(&commitNum, "commitNum", 10, "the count of items")
 	flag.StringVar(&url, "url", "https://chromium.googlesource.com/chromiumos/platform/tast-tests/", "Repository URL")
 	flag.StringVar(&branch, "branch", "main", "Branch Name")
 	flag.DurationVar(&timeout, "timeout", 5 * time.Second, "Maximum time program to run")
 	flag.StringVar(&folder, "folder", "./Commits/", "Folder Path")
+	flag.StringVar(&file, "file", "./Commits", "file Path")
 	flag.Parse()
 
-	var para = Parameters{commitNum: commitNum, URL: url, branch: branch, timeout: timeout, folder: folder}
+	var para = Parameters{commitNum: commitNum, URL: url, branch: branch, timeout: timeout, folder: folder, file: file}
 
 	err := run(para)
 	if err != nil {
-		// log.Fatal(err)
 		fmt.Println(err)
 	}
 }
@@ -297,7 +298,7 @@ func run(parameters Parameters) error {
 		last.name = authors[0]
 	}
 
-	file, err := os.Create("Contributors.csv")
+	file, err := os.Create(parameters.file + "./Contributors.csv")
 
     if err != nil {
         return err
@@ -314,6 +315,20 @@ func run(parameters Parameters) error {
 		
 	// }
 
+	writer.Write([]string{
+		"contributor",
+		"created",
+		"reviewed",
+	})
+
+	write := func( last Contributor) {
+		writer.Write([]string{
+			last.name,
+			strconv.Itoa(last.created),
+			strconv.Itoa(last.reviewed),
+		})
+	}
+
 
 	for i < len(authors) && j < len(reviewers) {
 		if (authors[i] < reviewers[j]) {
@@ -322,11 +337,7 @@ func run(parameters Parameters) error {
 				last.created++
 			} else {
 				// write
-				writer.Write([]string{
-					last.name,
-					strconv.Itoa(last.created),
-					strconv.Itoa(last.reviewed),
-				})
+				write(last)
 				last.name = authors[i]
 				last.created = 1
 				last.reviewed = 0
@@ -339,11 +350,7 @@ func run(parameters Parameters) error {
 				last.reviewed++
 			} else {
 				// write
-				writer.Write([]string{
-					last.name,
-					strconv.Itoa(last.created),
-					strconv.Itoa(last.reviewed),
-				})
+				write(last)
 				last.name = reviewers[j]
 				last.created = 0
 				last.reviewed = 1
@@ -354,11 +361,7 @@ func run(parameters Parameters) error {
 				last.created++
 				last.reviewed++
 			} else {
-				writer.Write([]string{
-					last.name,
-					strconv.Itoa(last.created),
-					strconv.Itoa(last.reviewed),
-				})
+				write(last)
 				last.name = reviewers[j]
 				last.created = 1
 				last.reviewed = 1
@@ -373,11 +376,7 @@ func run(parameters Parameters) error {
 		last.created = 1
 		last.reviewed = 0
 		//Write
-		writer.Write([]string{
-			last.name,
-			strconv.Itoa(last.created),
-			strconv.Itoa(last.reviewed),
-		})
+		write(last)
 		i++
 	}
 
@@ -386,11 +385,7 @@ func run(parameters Parameters) error {
 		last.created = 0
 		last.reviewed = 1
 		//Write
-		writer.Write([]string{
-			last.name,
-			strconv.Itoa(last.created),
-			strconv.Itoa(last.reviewed),
-		})
+		write(last)
 		j++
 	}
 
