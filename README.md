@@ -2,7 +2,7 @@
 
 ## MileStone - 1: Last 10 commit messages in tast-tests repository
 
-<img src="https://github.com/Vishalghyv/TastTests-Messages/blob/main/Screenshot%20(23).png" height="350" width="700" alt="MileStone 1">
+<img src="https://github.com/Vishalghyv/TastTests-Messages/blob/main/MileStone1.png" height="350" width="700" alt="MileStone 1">
 
 ### Process
 
@@ -19,7 +19,7 @@ Navigate to next commit code
 
 ## MileStone - 2: Add command line arguments to your program
 
-<img src="https://github.com/Vishalghyv/TastTests-Messages/blob/main/Screenshot%20(22).jpg" height="350" width="700" alt="MileStone 2">
+<img src="https://github.com/Vishalghyv/TastTests-Messages/blob/main/MileStone2.jpg" height="350" width="700" alt="MileStone 2">
 
 ### Process
 
@@ -31,7 +31,7 @@ Navigate to next commit code
 
 ## MileStone - 3: Parse commit messages
 
-<img src="https://github.com/Vishalghyv/TastTests-Messages/blob/main/Screenshot%20(24).jpg" height="350" width="700" alt="MileStone 3">
+<img src="https://github.com/Vishalghyv/TastTests-Messages/blob/main/MileStone3.jpg" height="350" width="700" alt="MileStone 3">
 
 ### Process
 
