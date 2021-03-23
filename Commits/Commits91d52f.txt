@@ -1,0 +1,1 @@
+tast-tests: stop ui.StadiaGameplayCUJ

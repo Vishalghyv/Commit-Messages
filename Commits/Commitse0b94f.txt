@@ -1,0 +1,1 @@
+(Nearby Share) Remove the NoAndroid fixture.

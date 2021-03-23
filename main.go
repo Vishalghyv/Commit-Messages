@@ -19,7 +19,7 @@ import (
 )
 
 type Parameters struct {
-	URL, branch, folder, file string
+	URL, branch, commitsDir, contributorDir string
 	commitNum int
 	timeout time.Duration
 }
@@ -32,17 +32,18 @@ type Contributor struct {
 
 func main() {
 	var commitNum int
-	var url, branch, folder, file string
+	var url, branch, commitsDir, contributorDir string
 	var timeout time.Duration
-	flag.IntVar(&commitNum, "commitNum", 10, "the count of items")
+	// Command Line Arguments
+	flag.IntVar(&commitNum, "commit-num", 10, "number of last commit messages")
 	flag.StringVar(&url, "url", "https://chromium.googlesource.com/chromiumos/platform/tast-tests/", "Repository URL")
 	flag.StringVar(&branch, "branch", "main", "Branch Name")
 	flag.DurationVar(&timeout, "timeout", 5 * time.Second, "Maximum time program to run")
-	flag.StringVar(&folder, "folder", "./Commits/", "Folder Path")
-	flag.StringVar(&file, "file", "./Commits", "file Path")
+	flag.StringVar(&commitsDir, "commits-dir", "./Commits/", "Commit message folder path")
+	flag.StringVar(&contributorDir, "contributor-dir", "./Commits", "Contributor CSV folder path")
 	flag.Parse()
 
-	var para = Parameters{commitNum: commitNum, URL: url, branch: branch, timeout: timeout, folder: folder, file: file}
+	var para = Parameters{commitNum: commitNum, URL: url, branch: branch, timeout: timeout, commitsDir: commitsDir, contributorDir: contributorDir}
 
 	err := run(para)
 	if err != nil {
@@ -111,15 +112,14 @@ func run(parameters Parameters) error {
 		return doc, err
 	}
 
-	// Navigating to main site
-
+	// Navigate to repository
 	Link := parameters.URL
 	doc, err := OpenDoc(Link, "https://google.com")
 	if err != nil {
 		return err
 	}
 
-	// Get link for main branch
+	// Parse url for branch
 
 	// Get the outer HTML for the page.
 	result, err := c.DOM.GetOuterHTML(ctx, &dom.GetOuterHTMLArgs{
@@ -137,6 +137,7 @@ func run(parameters Parameters) error {
 		return err
 	}
 
+	// Get Search Result
 	nodeIds,err := c.DOM.GetSearchResults(ctx, &dom.GetSearchResultsArgs{
 		SearchID: searchId.SearchID,
 		FromIndex: 0,
@@ -148,14 +149,14 @@ func run(parameters Parameters) error {
 
 	var branch string
 
-	// Parse Search Results to get branch link
+	// Parse Search Results to get branch url
 	for _, value := range nodeIds.NodeIDs {
 
 		att, err := c.DOM.GetAttributes(ctx, &dom.GetAttributesArgs{
 			NodeID: value,
 		})
 
-		// Node Exsists and have attributes containing href
+		// Check if Node Exists and have attributes containing href
 		if err != nil || len(att.Attributes) == 0{
 			continue;
 		}
@@ -171,6 +172,7 @@ func run(parameters Parameters) error {
 		}
 	  }
 
+	// Navigate to branch
 	Link ="https://chromium.googlesource.com" + branch
 
 	doc, err = OpenDoc(Link, "https://google.com")
@@ -178,9 +180,9 @@ func run(parameters Parameters) error {
 		return err
 	}
 
-	// Function to select to select a node and return html output for it
+	// Function to select a node and return html output for it
 	QueryHTML := func (NodeID dom.NodeID, Selector string) (string, error) {
-		message, err := c.DOM.QuerySelector(ctx, &dom.QuerySelectorArgs{
+		QueryNode, err := c.DOM.QuerySelector(ctx, &dom.QuerySelectorArgs{
 			NodeID: NodeID,
 			Selector: Selector,
 		})
@@ -190,34 +192,38 @@ func run(parameters Parameters) error {
 		}
 
 		result, err = c.DOM.GetOuterHTML(ctx, &dom.GetOuterHTMLArgs{
-			NodeID: &message.NodeID,
+			NodeID: &QueryNode.NodeID,
 		})
 
 		return result.OuterHTML, err
 
 	}
 
+	// Get commit code for first message
 	html, err := QueryHTML(doc.Root.NodeID, ".u-monospace.Metadata td")
 
 	if err != nil {
 		return err
 	}
 
-	next := strings.TrimLeft(strings.TrimRight(html,"</td>"), "<td>")
-	fmt.Println("Next ", next)
+	commitCode := strings.TrimLeft(strings.TrimRight(html,"</td>"), "<td>")
+	fmt.Println("Commit Code ", commitCode)
 
-	//From Next Commit
+	// Store parsed contributors
 	var authors []string
 	var reviewers []string
 
+	// MileStone 1 - storing of commit messages
 	for i := 1; i <= parameters.commitNum; i++ {
-		Link :=parameters.URL + "+/" + next
+		Link :=parameters.URL + "+/" + commitCode
 
+		// Navigate to commit code url
 		doc, err = OpenDoc(Link, "https://google.com")
 		if err != nil {
 			return err
 		}
 
+		// Get complete commit message
 		html, err = QueryHTML(doc.Root.NodeID, ".MetadataMessage")
 
 		if err != nil {
@@ -227,9 +233,9 @@ func run(parameters Parameters) error {
 		r := strings.NewReplacer("&lt;","<", "&gt;", ">")
 
 		completeMessage := strings.Split(r.Replace(html), "\n")
-		message := strings.Split(completeMessage[0], ">")[1]
-		// fmt.Println("Commit Message:\n", completeMessage)
+		commitMessage := strings.Split(completeMessage[0], ">")[1]
 
+		// Store contributor info
 		for _, value := range completeMessage { 
 			if strings.Contains(value, "Tested-by:") {
 				authors = append(authors, strings.TrimLeft(value, "Tested-by:")[1:])
@@ -239,26 +245,32 @@ func run(parameters Parameters) error {
 				reviewers = append(reviewers, strings.TrimLeft(value, "Reviewed-by:")[1:])
 			}
 		} 
-
-		html, err = QueryHTML(doc.Root.NodeID, "a[href*='/chromiumos/platform/tast-tests/+/" + next + "%5E']")
-
-		if err != nil {
-			return err
-		}
 		
-		textFile := parameters.folder + "./Commits" + next[0:6] + ".txt"
-		err = CreateFile(textFile, message)
+		// Store commit message in file
+		if _, err := os.Stat(parameters.commitsDir); os.IsNotExist(err) {
+			os.Mkdir(parameters.commitsDir, os.ModeDir|0755)
+		}
+	
+		textFile := parameters.commitsDir + "./Commits" + commitCode[0:6] + ".txt"
+		err = CreateFile(textFile, commitMessage)
 
 		if err != nil {
 			return err
 		}
 
-		next = strings.Split(strings.TrimRight(html,"</a>"), ">")[1]
-		fmt.Println("Next ", next)
+		// Get next commit code
+		html, err = QueryHTML(doc.Root.NodeID, "a[href*='/chromiumos/platform/tast-tests/+/" + commitCode + "%5E']")
+
+		if err != nil {
+			return err
+		}
+
+		commitCode = strings.Split(strings.TrimRight(html,"</a>"), ">")[1]
+		fmt.Println("Commit Code ", commitCode)
 
 	}
-	fmt.Println("MileStone 3")
-	// MileStone Three
+
+	// MileStone Three - Saving contributors data
 	// Sort Authors and Reviewers
 	sort.Sort(sort.StringSlice(authors))
 	
@@ -273,7 +285,12 @@ func run(parameters Parameters) error {
 		last.name = authors[0]
 	}
 
-	file, err := os.Create(parameters.file + "./Contributors.csv")
+	// Create contributor csv file
+	if _, err := os.Stat(parameters.contributorDir); os.IsNotExist(err) {
+		os.Mkdir(parameters.contributorDir, os.ModeDir|0755)
+	}
+
+	file, err := os.Create(parameters.contributorDir + "./Contributors.csv")
 
     if err != nil {
         return err
@@ -291,6 +308,7 @@ func run(parameters Parameters) error {
 		"reviewed",
 	})
 
+	// Function to write contributors in csv
 	write := func( last Contributor) {
 		writer.Write([]string{
 			last.name,
@@ -299,6 +317,7 @@ func run(parameters Parameters) error {
 		})
 	}
 
+	// Merge Sorted authors and reviewers, and Write unqiue contributors in csv file
 	for i < len(authors) && j < len(reviewers) {
 		if (authors[i] < reviewers[j]) {
 			
@@ -357,7 +376,7 @@ func run(parameters Parameters) error {
 }
 
 
-func CreateFile(fileName string, message string) error {
+func CreateFile(fileName string, commitMessage string) error {
 	f, err := os.Create(fileName)
 
     if err != nil {
@@ -366,7 +385,7 @@ func CreateFile(fileName string, message string) error {
 
     defer f.Close()
 
-    _, err2 := f.WriteString(message)
+    _, err2 := f.WriteString(commitMessage)
 
     if err2 != nil {
         return err2
