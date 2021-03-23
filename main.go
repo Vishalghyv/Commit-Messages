@@ -213,16 +213,23 @@ func run(parameters Parameters) error {
 	var authors []string
 	var reviewers []string
 
+	addition := ""
+	if parameters.URL[len(parameters.URL) -1] == '/' {
+		addition += "+/"
+	} else {
+		addition += "/+/"
+	}
+
 	// MileStone 1 - storing of commit messages
 	for i := 1; i <= parameters.commitNum; i++ {
-		Link :=parameters.URL + "+/" + commitCode
+		
+		Link :=parameters.URL + addition + commitCode
 
 		// Navigate to commit code url
 		doc, err = OpenDoc(Link, "https://google.com")
 		if err != nil {
 			return err
 		}
-
 		// Get complete commit message
 		html, err = QueryHTML(doc.Root.NodeID, ".MetadataMessage")
 
@@ -258,8 +265,11 @@ func run(parameters Parameters) error {
 			return err
 		}
 
+		search := strings.ReplaceAll(parameters.URL, "https://chromium.googlesource.com", "")
+		search += addition
+
 		// Get next commit code
-		html, err = QueryHTML(doc.Root.NodeID, "a[href*='/chromiumos/platform/tast-tests/+/" + commitCode + "%5E']")
+		html, err = QueryHTML(doc.Root.NodeID, "a[href*='" + search + commitCode + "%5E']")
 
 		if err != nil {
 			return err
