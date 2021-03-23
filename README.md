@@ -2,6 +2,8 @@
 
 ## MileStone - 1: Last 10 commit messages in tast-tests repository
 
+<img src="https://github.com/Vishalghyv/TastTests-Messages/blob/main/Screenshot%20(23).png" height="350" width="700" alt="MileStone 1">
+
 ### Process
 
 1. Navigate to the given URL
@@ -17,6 +19,8 @@ Navigate to next commit code
 
 ## MileStone - 2: Add command line arguments to your program
 
+<img src="https://github.com/Vishalghyv/TastTests-Messages/blob/main/Screenshot%20(22).png" height="350" width="700" alt="MileStone 2">
+
 ### Process
 
 1. Using flags package adding command line arguments
@@ -26,6 +30,8 @@ Navigate to next commit code
 3. And there values taken from command line arguments
 
 ## MileStone - 3: Parse commit messages
+
+<img src="https://github.com/Vishalghyv/TastTests-Messages/blob/main/Screenshot%20(24).png" height="350" width="700" alt="MileStone 3">
 
 ### Process
 
