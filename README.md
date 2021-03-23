@@ -50,3 +50,62 @@ Navigate to next commit code
 6. Add the file path for csv file as command line argument as done in milestone 2
 
 
+## Code Snippets Involved
+
+### Main function to parse the HTML
+
+```
+	QueryHTML := func (NodeID dom.NodeID, Selector string) (string, error) {
+		QueryNode, err := c.DOM.QuerySelector(ctx, &dom.QuerySelectorArgs{
+			NodeID: NodeID,
+			Selector: Selector,
+		})
+
+		if err != nil {
+			return "", err
+		}
+
+		result, err = c.DOM.GetOuterHTML(ctx, &dom.GetOuterHTMLArgs{
+			NodeID: &QueryNode.NodeID,
+		})
+
+		return result.OuterHTML, err
+
+	}
+```
+### Algorithim to Merge and Write Contributors data in CSV file
+
+```
+   type Contributor struct {
+      name string
+      created int 
+      reviewed int
+   }
+   
+   -> sorted authors and reviewrs slice
+   -> last of type Contributor intialized with first smallest name
+  
+   for i < len(authors) && j < len(reviewers) {
+		if (authors[i] < reviewers[j]) {
+			Insert author[i]
+			i++
+		} else if (authors[i] > reviewers[j]) {
+			Insert reviewer[i]
+			j++
+		} else {
+			Increase both created and reviewed count
+			i++
+			j++
+		}
+	} 
+
+	for i < len(authors) {
+		Insert left authors
+		i++
+	}
+
+	for j < len(reviewers) {
+		Insert left reviewers
+		j++
+	}
+```
