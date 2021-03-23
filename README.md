@@ -4,10 +4,10 @@
 
 ### Process
 
-Navigate to the given URL
+Navigate to the given URL <br><br>
 Parse the page to get branch URL
 
-Parse the branch page to get commit message and next commit code
+Parse the branch page to get commit message and next commit code <br><br>
 Store the commit message in a new file with format Commit + first six char of commit code
 
 Navigate to next commit code
