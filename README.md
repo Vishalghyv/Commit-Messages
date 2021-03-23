@@ -27,18 +27,18 @@ And there values taken from command line arguments
 
 ### Process
 
-Parse commit messages to get author and reviewers
+1. Parse commit messages to get author and reviewers
 
-Store them in seprate slice
+2. Store them in seprate slice
 
-Sort slice in end
+   Sort slice in end
 
-Using merge sort merge algorithim
+3. Using merge sort merge algorithim
 
-Merge the two with keeping the tab of last contributor so as to add there total contributions
+4. Merge the two with keeping the tab of last contributor so as to add there total contributions
 
-Write each contributors contribution in csv file
+5. Write each contributors contribution in csv file
 
-Add the file path for csv file as command line argument as done in milestone 2
+6. Add the file path for csv file as command line argument as done in milestone 2
 
 
