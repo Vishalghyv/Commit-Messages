@@ -4,11 +4,13 @@
 
 ### Process
 
-Navigate to the given URL <br><br>
-Parse the page to get branch URL
+1. Navigate to the given URL
 
-Parse the branch page to get commit message and next commit code <br><br>
-Store the commit message in a new file with format Commit + first six char of commit code
+2. Parse the page to get branch URL
+
+3. Parse the branch page to get commit message and next commit code
+
+4. Store the commit message in a new file with format Commit + first six char of commit code
 
 Navigate to next commit code
 
@@ -17,11 +19,11 @@ Navigate to next commit code
 
 ### Process
 
-Using flags package adding command line arguments
+1. Using flags package adding command line arguments
 
-Making repository url, branch name, number of commit messages, file path of saving commit message, timeout dynamic
+2. Making repository url, branch name, number of commit messages, file path of saving commit message, timeout dynamic
 
-And there values taken from command line arguments
+3. And there values taken from command line arguments
 
 ## MileStone - 3: Parse commit messages
 
