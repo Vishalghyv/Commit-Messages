@@ -26,19 +26,14 @@ type Parameters struct {
 
 type Contributor struct {
 	name string
-	created int `default:0`  
-	reviewed int`default:0`
+	created int 
+	reviewed int
 }
-
-var contributors []Contributor
 
 func main() {
 	var commitNum int
-	var url string
-	var branch string
+	var url, branch, folder, file string
 	var timeout time.Duration
-	var folder string
-	var file string
 	flag.IntVar(&commitNum, "commitNum", 10, "the count of items")
 	flag.StringVar(&url, "url", "https://chromium.googlesource.com/chromiumos/platform/tast-tests/", "Repository URL")
 	flag.StringVar(&branch, "branch", "main", "Branch Name")
@@ -61,7 +56,6 @@ func run(parameters Parameters) error {
 	defer cancel()
 
 	// Port used
-	// Use the DevTools HTTP/JSON API to manage targets (e.g. pages, webworkers).
 	devt := devtool.New("http://127.0.0.1:9222")
 	pt, err := devt.Get(ctx, devtool.Page)
 	if err != nil {
@@ -95,9 +89,10 @@ func run(parameters Parameters) error {
 	}
 
 	// Navigating to main site
-	// Create the Navigate arguments with the optional Referrer field set.
-
+	
+	// Function to navigate to a URL and return opened Document
 	OpenDoc := func (URL string, Referrer string) (*dom.GetDocumentReply, error) {
+		// Create the Navigate arguments with the optional Referrer field set.
 		navArgs := page.NewNavigateArgs(URL).
 			SetReferrer(Referrer)
 	
@@ -112,8 +107,7 @@ func run(parameters Parameters) error {
 		}
 	
 		fmt.Printf("Page loaded with frame ID: %s\n", nav.FrameID)
-	
-	
+
 		doc, err := c.DOM.GetDocument(ctx, nil)
 		
 		return doc, err
@@ -136,6 +130,7 @@ func run(parameters Parameters) error {
 		return err
 	}
 
+	// Perform search for the branch keyword
 	searchId,err := c.DOM.PerformSearch(ctx, &dom.PerformSearchArgs{
 		Query: parameters.branch,
 	})
@@ -154,30 +149,29 @@ func run(parameters Parameters) error {
 
 	var branch string
 
+	// Parse Search Results to get branch link
 	for _, value := range nodeIds.NodeIDs {
-		// fmt.Printf("- %d\n", value)
-		result, err := c.DOM.GetOuterHTML(ctx, &dom.GetOuterHTMLArgs{
-			NodeID: &value,
-		})
-		if err != nil {
-			fmt.Printf("Err : %s\n", err)
-			continue;
-		}
-	
-		fmt.Printf("First Link: %s\n", result.OuterHTML)
+
 		att, err := c.DOM.GetAttributes(ctx, &dom.GetAttributesArgs{
 			NodeID: value,
 		})
 
-		if err != nil|| len(att.Attributes) == 0{
+		// Node Exsists and have attributes containing href
+		if err != nil || len(att.Attributes) == 0{
 			continue;
 		}
 
-		branch = att.Attributes[len(att.Attributes)-1]
-		break;
+		for index, attributes := range att.Attributes {
+			if attributes == "href" {
+				branch = att.Attributes[index + 1]
+			}
+		}
+		if (branch != "") {
+			fmt.Println("Branch link", branch)
+			break
+		}
 	  }
-	fmt.Println("Branch", branch)
-	  
+
 	Link ="https://chromium.googlesource.com" + branch
 
 	doc, err = OpenDoc(Link, "https://google.com")
@@ -185,24 +179,19 @@ func run(parameters Parameters) error {
 		return err
 	}
 
-	QuerySelector := func (NodeID dom.NodeID, Selector string) (dom.NodeID, error) {
+	// Function to select to select a node and return html output for it
+	QueryHTML := func (NodeID dom.NodeID, Selector string) (string, error) {
 		message, err := c.DOM.QuerySelector(ctx, &dom.QuerySelectorArgs{
 			NodeID: NodeID,
 			Selector: Selector,
 		})
-	
-		return message.NodeID, err
-	}
-
-	QueryHTML := func (NodeID dom.NodeID, Selector string) (string, error) {
-		messageID, err := QuerySelector(NodeID, Selector)
 
 		if err != nil {
 			return "", err
 		}
 
 		result, err = c.DOM.GetOuterHTML(ctx, &dom.GetOuterHTMLArgs{
-			NodeID: &messageID,
+			NodeID: &message.NodeID,
 		})
 
 		return result.OuterHTML, err
@@ -211,15 +200,12 @@ func run(parameters Parameters) error {
 
 	html, err := QueryHTML(doc.Root.NodeID, ".u-monospace.Metadata td")
 
-		if err != nil {
-			return err
-		}
+	if err != nil {
+		return err
+	}
 
 	next := strings.TrimLeft(strings.TrimRight(html,"</td>"), "<td>")
-	fmt.Println("Next fuck", next)
-
-
-	//OKAY
+	fmt.Println("Next ", next)
 
 	//From Next Commit
 	var authors []string
@@ -238,23 +224,20 @@ func run(parameters Parameters) error {
 		if err != nil {
 			return err
 		}
-
-		name := strings.Split(strings.Split(html, "\n")[0], ">")[1]
-		completeMessage := strings.Split(html, "\n")
-
+		// Convert HTML characters
 		r := strings.NewReplacer("&lt;","<", "&gt;", ">")
 
+		completeMessage := strings.Split(r.Replace(html), "\n")
+		message := strings.Split(completeMessage[0], ">")[1]
 		// fmt.Println("Commit Message:\n", completeMessage)
 
 		for _, value := range completeMessage { 
 			if strings.Contains(value, "Tested-by:") {
-				fmt.Println(strings.TrimLeft(r.Replace(value), "Tested-by:")[1:])
-				authors = append(authors, strings.TrimLeft(r.Replace(value), "Tested-by:")[1:])
+				authors = append(authors, strings.TrimLeft(value, "Tested-by:")[1:])
 			}
 
 			if strings.Contains(value, "Reviewed-by:") {
-				fmt.Println(strings.TrimLeft(r.Replace(value), "Reviewed-by:")[1:])
-				reviewers = append(reviewers, strings.TrimLeft(r.Replace(value), "Reviewed-by:")[1:])
+				reviewers = append(reviewers, strings.TrimLeft(value, "Reviewed-by:")[1:])
 			}
 		} 
 
@@ -263,34 +246,28 @@ func run(parameters Parameters) error {
 		if err != nil {
 			return err
 		}
-
-		out := strings.TrimLeft(strings.TrimRight(html,"</a>"),"<a>")
 		
 		textFile := parameters.folder + "./Commits" + next[0:6] + ".txt"
-		err = CreateFile(textFile, name)
+		err = CreateFile(textFile, message)
 
 		if err != nil {
 			return err
 		}
 
-		next = strings.Split(out, ">")[1]
+		next = strings.Split(strings.TrimRight(html,"</a>"), ">")[1]
 		fmt.Println("Next ", next)
 
 	}
+
+	// MileStone Three
+	// Sort Authors and Reviewers
 	sort.Sort(sort.StringSlice(authors))
-    fmt.Println(authors)
 	
 	sort.Sort(sort.StringSlice(reviewers))
-    fmt.Println(reviewers)
 
 	var i,j int
 
-	i =0
-	j = 0
-
-	last := Contributor{ 
-		name: "",
-	}
+	var last Contributor
 
 	if (authors[0] > reviewers[0]) {
 		last.name = reviewers[0]
@@ -310,11 +287,6 @@ func run(parameters Parameters) error {
 
 	defer writer.Flush()
 
-
-	// write := func (last Contributor) {
-		
-	// }
-
 	writer.Write([]string{
 		"contributor",
 		"created",
@@ -333,58 +305,52 @@ func run(parameters Parameters) error {
 	for i < len(authors) && j < len(reviewers) {
 		if (authors[i] < reviewers[j]) {
 			
-			if (last.name == authors[i]) {
-				last.created++
-			} else {
-				// write
+			if (last.name != authors[i]) {
+				// Write the contributor and create new contributor
 				write(last)
+				last = Contributor{}
 				last.name = authors[i]
-				last.created = 1
-				last.reviewed = 0
 			}
-			
+			last.created++
 			i++
 		} else if (authors[i] > reviewers[j]) {
 			
-			if (last.name == reviewers[j]) {
-				last.reviewed++
-			} else {
-				// write
+			if (last.name != reviewers[j]) {
+				// Write the contributor and create new contributor
 				write(last)
+				last = Contributor{}
 				last.name = reviewers[j]
-				last.created = 0
-				last.reviewed = 1
 			}
+			last.reviewed++
 			j++
 		} else {
-			if (last.name == authors[i]) {
-				last.created++
-				last.reviewed++
-			} else {
+			if (last.name != authors[i]) {
+				// Write the contributor and create new contributor
 				write(last)
-				last.name = reviewers[j]
-				last.created = 1
-				last.reviewed = 1
+				last = Contributor{}
+				last.name = authors[j]
 			}
+			last.created++
+			last.reviewed++
 			i++
 			j++
 		}
 	} 
 
 	for i < len(authors) {
+		// Write the contributor and create new contributor
 		last.name = authors[i]
 		last.created = 1
 		last.reviewed = 0
-		//Write
 		write(last)
 		i++
 	}
 
 	for j < len(reviewers) {
+		// Write the contributor and create new contributor
 		last.name = reviewers[j]
 		last.created = 0
 		last.reviewed = 1
-		//Write
 		write(last)
 		j++
 	}
