@@ -1,0 +1,1 @@
+tast: Add --fancy flag to enable fancy logging.

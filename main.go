@@ -206,7 +206,7 @@ func run(parameters Parameters) error {
 		return err
 	}
 
-	commitCode := strings.TrimLeft(strings.TrimRight(html,"</td>"), "<td>")
+	commitCode := strings.Replace(strings.TrimRight(html,"</td>"), "<td>", "", 1)
 	fmt.Println("Commit Code ", commitCode)
 
 	// Store parsed contributors
@@ -241,15 +241,17 @@ func run(parameters Parameters) error {
 
 		completeMessage := strings.Split(r.Replace(html), "\n")
 		commitMessage := strings.Split(completeMessage[0], ">")[1]
-
+		// fmt.Println("THis is hell", completeMessage)
 		// Store contributor info
 		for _, value := range completeMessage { 
-			if strings.Contains(value, "Tested-by:") {
-				authors = append(authors, strings.TrimLeft(value, "Tested-by:")[1:])
+			if strings.Contains(value, "Tested-by:")  && (value[0] == ' ' || value[0] == 'T'){
+				// fmt.Println(strings.TrimLeft(strings.Trim(value, " "), "Tested-by:")[1:])
+				// fmt.Println(value)
+				authors = append(authors, strings.TrimLeft(strings.Trim(value, " "), "Tested-by:")[1:])
 			}
 
-			if strings.Contains(value, "Reviewed-by:") {
-				reviewers = append(reviewers, strings.TrimLeft(value, "Reviewed-by:")[1:])
+			if strings.Contains(value, "Reviewed-by:") && (value[0] == ' ' || value[0] == 'R') {
+				reviewers = append(reviewers, strings.TrimLeft(strings.Trim(value, " "), "Reviewed-by:")[1:])
 			}
 		} 
 		
@@ -283,7 +285,6 @@ func run(parameters Parameters) error {
 	// MileStone Three - Saving contributors data
 	// Sort Authors and Reviewers
 	sort.Sort(sort.StringSlice(authors))
-	
 	sort.Sort(sort.StringSlice(reviewers))
 	var i,j int
 
@@ -320,6 +321,10 @@ func run(parameters Parameters) error {
 
 	// Function to write contributors in csv
 	write := func( last Contributor) {
+		if (last.name == "") {
+			return
+		}
+		fmt.Println("Writing", last.name, last.created, last.reviewed)
 		writer.Write([]string{
 			last.name,
 			strconv.Itoa(last.created),
@@ -361,23 +366,37 @@ func run(parameters Parameters) error {
 			i++
 			j++
 		}
-	} 
+
+	}
+	write(last)
+	last = Contributor{}
 
 	for i < len(authors) {
-		// Write the contributor and create new contributor
-		last.name = authors[i]
-		last.created = 1
-		last.reviewed = 0
-		write(last)
+		if (i == len(authors)-1 && last.name == authors[i]) {
+			last.created++
+			write(last)
+		}
+		if (last.name != authors[i]) {
+			write(last)
+			last = Contributor{}
+			last.name = authors[i]
+		}
+		last.created++
 		i++
 	}
 
 	for j < len(reviewers) {
-		// Write the contributor and create new contributor
-		last.name = reviewers[j]
-		last.created = 0
-		last.reviewed = 1
-		write(last)
+		if (j == len(reviewers)-1 && last.name == reviewers[j]) {
+			last.reviewed++
+			write(last)
+		}
+
+		if (last.name != reviewers[j]) {
+			write(last)
+			last = Contributor{}
+			last.name = reviewers[j]
+		}
+		last.reviewed++
 		j++
 	}
 

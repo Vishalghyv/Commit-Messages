@@ -1,0 +1,1 @@
+tast-tests: Add canonical import paths to all packages.

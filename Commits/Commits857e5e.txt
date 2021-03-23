@@ -1,0 +1,1 @@
+Revert "tast: Add canonical import paths to all packages."

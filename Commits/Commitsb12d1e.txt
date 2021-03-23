@@ -1,0 +1,1 @@
+tast: Include test details in results.json.

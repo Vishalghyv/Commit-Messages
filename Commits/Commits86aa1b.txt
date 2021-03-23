@@ -1,0 +1,1 @@
+tast: Shorten run command's -testtype flag to -type.

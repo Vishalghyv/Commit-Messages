@@ -1,0 +1,1 @@
+tast: Make run.readTestOutput take Config struct.

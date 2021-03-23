@@ -1,0 +1,1 @@
+tast: Update README.md to link to package docs.
