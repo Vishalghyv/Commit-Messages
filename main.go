@@ -88,8 +88,6 @@ func run(parameters Parameters) error {
 		return err
 	}
 
-	// Navigating to main site
-	
 	// Function to navigate to a URL and return opened Document
 	OpenDoc := func (URL string, Referrer string) (*dom.GetDocumentReply, error) {
 		// Create the Navigate arguments with the optional Referrer field set.
@@ -113,7 +111,8 @@ func run(parameters Parameters) error {
 		return doc, err
 	}
 
-	
+	// Navigating to main site
+
 	Link := parameters.URL
 	doc, err := OpenDoc(Link, "https://google.com")
 	if err != nil {
@@ -212,7 +211,7 @@ func run(parameters Parameters) error {
 	var reviewers []string
 
 	for i := 1; i <= parameters.commitNum; i++ {
-		Link :="https://chromium.googlesource.com/chromiumos/platform/tast-tests/+/" + next
+		Link :=parameters.URL + "+/" + next
 
 		doc, err = OpenDoc(Link, "https://google.com")
 		if err != nil {
@@ -258,13 +257,12 @@ func run(parameters Parameters) error {
 		fmt.Println("Next ", next)
 
 	}
-
+	fmt.Println("MileStone 3")
 	// MileStone Three
 	// Sort Authors and Reviewers
 	sort.Sort(sort.StringSlice(authors))
 	
 	sort.Sort(sort.StringSlice(reviewers))
-
 	var i,j int
 
 	var last Contributor
@@ -301,7 +299,6 @@ func run(parameters Parameters) error {
 		})
 	}
 
-
 	for i < len(authors) && j < len(reviewers) {
 		if (authors[i] < reviewers[j]) {
 			
@@ -328,7 +325,7 @@ func run(parameters Parameters) error {
 				// Write the contributor and create new contributor
 				write(last)
 				last = Contributor{}
-				last.name = authors[j]
+				last.name = authors[i]
 			}
 			last.created++
 			last.reviewed++
