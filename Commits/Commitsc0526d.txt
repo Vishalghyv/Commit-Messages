@@ -1,0 +1,5 @@
+tast-tests: Improve error message in policy.PromptForDownloadLocation
+
+In policy.PromptForDownloadLocation the error from ioutil.ReadDir is
+added to the error message when the test fails at that point.
+

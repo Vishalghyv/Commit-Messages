@@ -1,0 +1,8 @@
+[ui perftest] Update ui.LoginPerf to check ARC effects on login.
+
+This CL adds different ARC flavours to the login performance.
+
+It also adds Histogram.Max() method and modifies UI perfutil
+to support explicit aggregation function specifications for
+histograms.
+

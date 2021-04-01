@@ -1,1 +1,0 @@
-tast-tests: Add method to maximize Files app if action fails

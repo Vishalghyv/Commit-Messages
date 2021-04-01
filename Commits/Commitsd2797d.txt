@@ -1,0 +1,7 @@
+BootedDeviceReporter: Parameterize by BootMode
+
+The attached bug occurred because we were not controlling the initial
+boot mode of the DUT. With this CL, we explicitly test each boot mode in
+a controlled environment. The Dev Mode test is currently disabled while
+Dev Mode transition seeks stabilization.
+

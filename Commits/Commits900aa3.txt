@@ -1,1 +1,0 @@
-Change vault mount directory expectations

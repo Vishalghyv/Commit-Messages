@@ -1,1 +1,0 @@
-Add generate_external.sh

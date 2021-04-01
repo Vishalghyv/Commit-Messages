@@ -1,0 +1,2 @@
+BootedDevice reporter: Recognize recovery boot
+

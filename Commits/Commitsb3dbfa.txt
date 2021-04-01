@@ -1,0 +1,2 @@
+tast-tests: moving some GAIALogin tests to GAIALoginPool
+

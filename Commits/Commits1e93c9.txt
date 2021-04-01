@@ -1,0 +1,5 @@
+tast tests: Fix the settings test for UI change
+
+Update the test as it fails with UI change in ARC-R.
+Methods separated out for ARC-P and ARC-R.
+

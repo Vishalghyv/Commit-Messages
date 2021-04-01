@@ -1,0 +1,7 @@
+camera: Add HAL3StillCaptureZSL test
+
+Adds a Tast test, HAL3StillCaptureZSL, to test still captures with ZSL
+turned on. The ZSL test is added in crrev.com/c/2587120. This CL also
+tweaks the gtest filters so that HAL3StillCapture doesn't run ZSL
+capture tests on unsupported platforms.
+

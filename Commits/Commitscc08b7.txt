@@ -1,1 +1,0 @@
-tast-tests: Add more APIs to autotestPrivate extension.

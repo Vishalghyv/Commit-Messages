@@ -2,14 +2,14 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"time"
-	"strings"
-	"os"
-	"flag"
-	"sort"
 	"encoding/csv"
+	"flag"
+	"fmt"
+	"os"
+	"sort"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/mafredri/cdp"
 	"github.com/mafredri/cdp/devtool"
@@ -20,36 +20,38 @@ import (
 
 type Parameters struct {
 	URL, branch, commitsDir, contributorDir string
-	commitNum int
-	timeout time.Duration
+	commitNum                               int
+	timeout                                 time.Duration
 }
 
 type Contributor struct {
-	name string
-	created int 
+	name     string
+	created  int
 	reviewed int
 }
 
 func main() {
-	var commitNum int
-	var url, branch, commitsDir, contributorDir string
-	var timeout time.Duration
+	var para = Parameters{}
+
 	// Command Line Arguments
-	flag.IntVar(&commitNum, "commit-num", 10, "number of last commit messages")
-	flag.StringVar(&url, "url", "https://chromium.googlesource.com/chromiumos/platform/tast-tests/", "Repository URL")
-	flag.StringVar(&branch, "branch", "main", "Branch Name")
-	flag.DurationVar(&timeout, "timeout", 5 * time.Second, "Maximum time program to run")
-	flag.StringVar(&commitsDir, "commits-dir", "./Commits/", "Commit message folder path")
-	flag.StringVar(&contributorDir, "contributor-dir", "./Commits", "Contributor CSV folder path")
+	flag.IntVar(&para.commitNum, "commit-num", 10, "number of last commit messages")
+	flag.StringVar(&para.URL, "url", "https://chromium.googlesource.com/chromiumos/platform/tast-tests/", "Repository URL")
+	flag.StringVar(&para.branch, "branch", "main", "Branch Name")
+	flag.DurationVar(&para.timeout, "timeout", 10*time.Second, "Maximum time program to run")
+	flag.StringVar(&para.commitsDir, "commits-dir", "./Commits/", "Commit message folder path")
+	flag.StringVar(&para.contributorDir, "contributor-dir", "./Commits", "Contributor CSV folder path")
 	flag.Parse()
 
-	var para = Parameters{commitNum: commitNum, URL: url, branch: branch, timeout: timeout, commitsDir: commitsDir, contributorDir: contributorDir}
+	// var para = Parameters{commitNum: commitNum, URL: url, branch: branch, timeout: timeout, commitsDir: commitsDir, contributorDir: contributorDir}
 
 	err := run(para)
 	if err != nil {
 		fmt.Println(err)
 	}
 }
+
+var ctx context.Context
+var c *cdp.Client
 
 func run(parameters Parameters) error {
 	// Context
@@ -74,7 +76,8 @@ func run(parameters Parameters) error {
 	}
 	defer conn.Close() // Leaving connections open will leak memory.
 
-	c := cdp.NewClient(conn)
+	// Global cdp.Client is defined - Important to not redefine it
+	c = cdp.NewClient(conn)
 
 	// Open a DOMContentEventFired client to buffer this event.
 	domContent, err := c.Page.DOMContentEventFired(ctx)
@@ -90,25 +93,25 @@ func run(parameters Parameters) error {
 	}
 
 	// Function to navigate to a URL and return opened Document
-	OpenDoc := func (URL string, Referrer string) (*dom.GetDocumentReply, error) {
+	OpenDoc := func(URL string, Referrer string) (*dom.GetDocumentReply, error) {
 		// Create the Navigate arguments with the optional Referrer field set.
 		navArgs := page.NewNavigateArgs(URL).
 			SetReferrer(Referrer)
-	
+
 		nav, err := c.Page.Navigate(ctx, navArgs)
 		if err != nil {
 			return nil, err
 		}
-	
+
 		// Wait until we have a DOMContentEventFired event.
 		if _, err = domContent.Recv(); err != nil {
 			return nil, err
 		}
-	
+
 		fmt.Printf("Page loaded with frame ID: %s\n", nav.FrameID)
 
 		doc, err := c.DOM.GetDocument(ctx, nil)
-		
+
 		return doc, err
 	}
 
@@ -122,81 +125,35 @@ func run(parameters Parameters) error {
 	// Parse url for branch
 
 	// Get the outer HTML for the page.
-	result, err := c.DOM.GetOuterHTML(ctx, &dom.GetOuterHTMLArgs{
-		NodeID: &doc.Root.NodeID,
-	})
+	QueryNodes, err := QuerySelectorAll(doc.Root.NodeID, "ul.RefList-items > li > a")
+	fmt.Println(QueryNodes)
+
 	if err != nil {
 		return err
 	}
-
-	// Perform search for the branch keyword
-	searchId,err := c.DOM.PerformSearch(ctx, &dom.PerformSearchArgs{
-		Query: parameters.branch,
-	})
-	if err != nil {
-		return err
-	}
-
-	// Get Search Result
-	nodeIds,err := c.DOM.GetSearchResults(ctx, &dom.GetSearchResultsArgs{
-		SearchID: searchId.SearchID,
-		FromIndex: 0,
-		ToIndex: searchId.ResultCount,
-	})
-	if err != nil {
-		return err
-	}
-
 	var branch string
 
-	// Parse Search Results to get branch url
-	for _, value := range nodeIds.NodeIDs {
+	for _, nodeId := range QueryNodes.NodeIDs {
 
-		att, err := c.DOM.GetAttributes(ctx, &dom.GetAttributesArgs{
-			NodeID: value,
-		})
+		result, err := GetOuterHTML(nodeId)
 
-		// Check if Node Exists and have attributes containing href
-		if err != nil || len(att.Attributes) == 0{
-			continue;
+		if err != nil {
+			return err
 		}
 
-		for index, attributes := range att.Attributes {
-			if attributes == "href" {
-				branch = att.Attributes[index + 1]
-			}
-		}
-		if (branch != "") {
-			fmt.Println("Branch link", branch)
+		if strings.Contains(result.OuterHTML, "main") {
+			branch = strings.Split(result.OuterHTML, "\">")[0]
+			branch = strings.TrimLeft(branch, "<a href=\"")
 			break
 		}
-	  }
+	}
 
 	// Navigate to branch
-	Link ="https://chromium.googlesource.com" + branch
+	Link = "https://chromium.googlesource.com" + branch
 
 	doc, err = OpenDoc(Link, "https://google.com")
 	if err != nil {
 		return err
-	}
-
-	// Function to select a node and return html output for it
-	QueryHTML := func (NodeID dom.NodeID, Selector string) (string, error) {
-		QueryNode, err := c.DOM.QuerySelector(ctx, &dom.QuerySelectorArgs{
-			NodeID: NodeID,
-			Selector: Selector,
-		})
-
-		if err != nil {
-			return "", err
-		}
-
-		result, err = c.DOM.GetOuterHTML(ctx, &dom.GetOuterHTMLArgs{
-			NodeID: &QueryNode.NodeID,
-		})
-
-		return result.OuterHTML, err
-
 	}
 
 	// Get commit code for first message
@@ -206,7 +163,7 @@ func run(parameters Parameters) error {
 		return err
 	}
 
-	commitCode := strings.Replace(strings.TrimRight(html,"</td>"), "<td>", "", 1)
+	commitCode := strings.Replace(strings.TrimRight(html, "</td>"), "<td>", "", 1)
 	fmt.Println("Commit Code ", commitCode)
 
 	// Store parsed contributors
@@ -214,7 +171,7 @@ func run(parameters Parameters) error {
 	var reviewers []string
 
 	addition := ""
-	if parameters.URL[len(parameters.URL) -1] == '/' {
+	if parameters.URL[len(parameters.URL)-1] == '/' {
 		addition += "+/"
 	} else {
 		addition += "/+/"
@@ -222,8 +179,8 @@ func run(parameters Parameters) error {
 
 	// MileStone 1 - storing of commit messages
 	for i := 1; i <= parameters.commitNum; i++ {
-		
-		Link :=parameters.URL + addition + commitCode
+
+		Link := parameters.URL + addition + commitCode
 
 		// Navigate to commit code url
 		doc, err = OpenDoc(Link, "https://google.com")
@@ -237,31 +194,24 @@ func run(parameters Parameters) error {
 			return err
 		}
 		// Convert HTML characters
-		r := strings.NewReplacer("&lt;","<", "&gt;", ">")
+		r := strings.NewReplacer("&lt;", "<", "&gt;", ">")
 
 		completeMessage := strings.Split(r.Replace(html), "\n")
-		commitMessage := strings.Split(completeMessage[0], ">")[1]
-		// fmt.Println("THis is hell", completeMessage)
-		// Store contributor info
-		for _, value := range completeMessage { 
-			if strings.Contains(value, "Tested-by:")  && (value[0] == ' ' || value[0] == 'T'){
-				// fmt.Println(strings.TrimLeft(strings.Trim(value, " "), "Tested-by:")[1:])
-				// fmt.Println(value)
-				authors = append(authors, strings.TrimLeft(strings.Trim(value, " "), "Tested-by:")[1:])
-			}
 
-			if strings.Contains(value, "Reviewed-by:") && (value[0] == ' ' || value[0] == 'R') {
-				reviewers = append(reviewers, strings.TrimLeft(strings.Trim(value, " "), "Reviewed-by:")[1:])
-			}
-		} 
-		
+		newAuthors, newReviewers, message := parseMessage(completeMessage)
+
+		authors = append(authors, newAuthors...)
+		reviewers = append(reviewers, newReviewers...)
+
+		message[0] = strings.Split(message[0], ">")[1]
+
 		// Store commit message in file
 		if _, err := os.Stat(parameters.commitsDir); os.IsNotExist(err) {
 			os.Mkdir(parameters.commitsDir, os.ModeDir|0755)
 		}
-	
+
 		textFile := parameters.commitsDir + "./Commits" + commitCode[0:6] + ".txt"
-		err = CreateFile(textFile, commitMessage)
+		err = CreateFile(textFile, message)
 
 		if err != nil {
 			return err
@@ -271,26 +221,25 @@ func run(parameters Parameters) error {
 		search += addition
 
 		// Get next commit code
-		html, err = QueryHTML(doc.Root.NodeID, "a[href*='" + search + commitCode + "%5E']")
+		html, err = QueryHTML(doc.Root.NodeID, "a[href*='"+search+commitCode+"%5E']")
 
 		if err != nil {
 			return err
 		}
 
-		commitCode = strings.Split(strings.TrimRight(html,"</a>"), ">")[1]
-		fmt.Println("Commit Code ", commitCode)
+		commitCode = strings.Split(strings.TrimRight(html, "</a>"), ">")[1]
+		// fmt.Println("Commit Code ", commitCode)
 
 	}
 
 	// MileStone Three - Saving contributors data
 	// Sort Authors and Reviewers
-	sort.Sort(sort.StringSlice(authors))
-	sort.Sort(sort.StringSlice(reviewers))
-	var i,j int
+	sort.Strings(authors)
+	sort.Strings(reviewers)
 
 	var last Contributor
 
-	if (authors[0] > reviewers[0]) {
+	if authors[0] > reviewers[0] {
 		last.name = reviewers[0]
 	} else {
 		last.name = authors[0]
@@ -303,11 +252,11 @@ func run(parameters Parameters) error {
 
 	file, err := os.Create(parameters.contributorDir + "./Contributors.csv")
 
-    if err != nil {
-        return err
-    }
+	if err != nil {
+		return err
+	}
 
-    defer file.Close()
+	defer file.Close()
 
 	writer := csv.NewWriter(file)
 
@@ -319,45 +268,51 @@ func run(parameters Parameters) error {
 		"reviewed",
 	})
 
-	// Function to write contributors in csv
-	write := func( last Contributor) {
-		if (last.name == "") {
-			return
-		}
-		fmt.Println("Writing", last.name, last.created, last.reviewed)
-		writer.Write([]string{
-			last.name,
-			strconv.Itoa(last.created),
-			strconv.Itoa(last.reviewed),
-		})
-	}
+	MergeSort(authors, reviewers, last, writer)
 
+	return nil
+}
+
+func write(last Contributor, writer *csv.Writer) {
+	if last.name == "" {
+		return
+	}
+	fmt.Println("Writing", last.name, last.created, last.reviewed)
+	writer.Write([]string{
+		last.name,
+		strconv.Itoa(last.created),
+		strconv.Itoa(last.reviewed),
+	})
+}
+
+func MergeSort(authors []string, reviewers []string, last Contributor, writer *csv.Writer) {
+	var i, j int
 	// Merge Sorted authors and reviewers, and Write unqiue contributors in csv file
 	for i < len(authors) && j < len(reviewers) {
-		if (authors[i] < reviewers[j]) {
-			
-			if (last.name != authors[i]) {
+		if authors[i] < reviewers[j] {
+
+			if last.name != authors[i] {
 				// Write the contributor and create new contributor
-				write(last)
+				write(last, writer)
 				last = Contributor{}
 				last.name = authors[i]
 			}
 			last.created++
 			i++
-		} else if (authors[i] > reviewers[j]) {
-			
-			if (last.name != reviewers[j]) {
+		} else if authors[i] > reviewers[j] {
+
+			if last.name != reviewers[j] {
 				// Write the contributor and create new contributor
-				write(last)
+				write(last, writer)
 				last = Contributor{}
 				last.name = reviewers[j]
 			}
 			last.reviewed++
 			j++
 		} else {
-			if (last.name != authors[i]) {
+			if last.name != authors[i] {
 				// Write the contributor and create new contributor
-				write(last)
+				write(last, writer)
 				last = Contributor{}
 				last.name = authors[i]
 			}
@@ -368,16 +323,16 @@ func run(parameters Parameters) error {
 		}
 
 	}
-	write(last)
+	write(last, writer)
 	last = Contributor{}
 
 	for i < len(authors) {
-		if (i == len(authors)-1 && last.name == authors[i]) {
+		if i == len(authors)-1 && last.name == authors[i] {
 			last.created++
-			write(last)
+			write(last, writer)
 		}
-		if (last.name != authors[i]) {
-			write(last)
+		if last.name != authors[i] {
+			write(last, writer)
 			last = Contributor{}
 			last.name = authors[i]
 		}
@@ -386,39 +341,99 @@ func run(parameters Parameters) error {
 	}
 
 	for j < len(reviewers) {
-		if (j == len(reviewers)-1 && last.name == reviewers[j]) {
+		if j == len(reviewers)-1 && last.name == reviewers[j] {
 			last.reviewed++
-			write(last)
+			write(last, writer)
 		}
 
-		if (last.name != reviewers[j]) {
-			write(last)
+		if last.name != reviewers[j] {
+			write(last, writer)
 			last = Contributor{}
 			last.name = reviewers[j]
 		}
 		last.reviewed++
 		j++
 	}
-
-
-	return nil
 }
 
-
-func CreateFile(fileName string, commitMessage string) error {
+func CreateFile(fileName string, commitMessage []string) error {
 	f, err := os.Create(fileName)
 
-    if err != nil {
-        return err
-    }
+	if err != nil {
+		return err
+	}
 
-    defer f.Close()
+	defer f.Close()
+	for _, message := range commitMessage {
+		_, err2 := f.WriteString(message)
+		f.WriteString("\n")
 
-    _, err2 := f.WriteString(commitMessage)
+		if err2 != nil {
+			return err2
+		}
+	}
 
-    if err2 != nil {
-        return err2
-    }
 	return nil
 
+}
+
+func QuerySelectorAll(NodeID dom.NodeID, Selector string) (*dom.QuerySelectorAllReply, error) {
+	QueryNodes, err := c.DOM.QuerySelectorAll(ctx, &dom.QuerySelectorAllArgs{
+		NodeID:   NodeID,
+		Selector: Selector,
+	})
+	return QueryNodes, err
+}
+
+func QuerySelector(NodeID dom.NodeID, Selector string) (*dom.QuerySelectorReply, error) {
+	QueryNode, err := c.DOM.QuerySelector(ctx, &dom.QuerySelectorArgs{
+		NodeID:   NodeID,
+		Selector: Selector,
+	})
+	return QueryNode, err
+}
+
+func GetOuterHTML(NodeId dom.NodeID) (*dom.GetOuterHTMLReply, error) {
+	result, err := c.DOM.GetOuterHTML(ctx, &dom.GetOuterHTMLArgs{
+		NodeID: &NodeId,
+	})
+	return result, err
+}
+
+// Function to select a node and return html output for it
+func QueryHTML(NodeID dom.NodeID, Selector string) (string, error) {
+	QueryNode, err := QuerySelector(NodeID, Selector)
+
+	if err != nil {
+		return "", err
+	}
+
+	result, err := GetOuterHTML(QueryNode.NodeID)
+
+	return result.OuterHTML, err
+
+}
+
+func parseMessage(completeMessage []string) ([]string, []string, []string) {
+	var authors, reviewers, message []string
+	complete := false
+	for _, value := range completeMessage {
+		if strings.Contains(value, "Tested-by:") && (value[0] == ' ' || value[0] == 'T') {
+			// fmt.Println(strings.TrimLeft(strings.Trim(value, " "), "Tested-by:")[1:])
+			// fmt.Println(value)
+			authors = append(authors, strings.TrimLeft(strings.Trim(value, " "), "Tested-by:")[1:])
+		}
+
+		if strings.Contains(value, "Reviewed-by:") && (value[0] == ' ' || value[0] == 'R') {
+			reviewers = append(reviewers, strings.TrimLeft(strings.Trim(value, " "), "Reviewed-by:")[1:])
+		}
+		if !complete {
+			if strings.Contains(value, "BUG=") {
+				complete = true
+			} else {
+				message = append(message, value)
+			}
+		}
+	}
+	return authors, reviewers, message
 }
