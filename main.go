@@ -223,7 +223,7 @@ func run(parameters Parameters) error {
 		}
 
 		commitCode = strings.Split(strings.TrimRight(html, "</a>"), ">")[1]
-		// fmt.Println("Commit Code ", commitCode)
+		fmt.Println("Commit Code ", commitCode)
 
 	}
 
@@ -296,11 +296,14 @@ func parseMessage(rawMessage string) ([]string, []string, []string) {
 	// Convert HTML characters
 	r := strings.NewReplacer("&lt;", "<", "&gt;", ">")
 
-	completeMessage := strings.Split(r.Replace(rawMessage), "\n")
+	commitMessage := strings.Split(r.Replace(rawMessage), "\n")
 
-	var authors, reviewers, message []string
-	complete := false
-	for _, value := range completeMessage {
+	commitMessage[0] = strings.Split(commitMessage[0], ">")[1]
+	commitMessage = commitMessage[:len(commitMessage)-1]
+
+	var authors, reviewers []string
+
+	for _, value := range commitMessage {
 		if strings.Contains(value, "Tested-by:") && (value[0] == ' ' || value[0] == 'T') {
 			authors = append(authors, strings.TrimLeft(strings.Trim(value, " "), "Tested-by:")[1:])
 		}
@@ -308,15 +311,8 @@ func parseMessage(rawMessage string) ([]string, []string, []string) {
 		if strings.Contains(value, "Reviewed-by:") && (value[0] == ' ' || value[0] == 'R') {
 			reviewers = append(reviewers, strings.TrimLeft(strings.Trim(value, " "), "Reviewed-by:")[1:])
 		}
-		if !complete {
-			if strings.Contains(value, "BUG=") {
-				complete = true
-			} else {
-				message = append(message, value)
-			}
-		}
-	}
-	message[0] = strings.Split(message[0], ">")[1]
 
-	return message, authors, reviewers
+	}
+
+	return commitMessage, authors, reviewers
 }

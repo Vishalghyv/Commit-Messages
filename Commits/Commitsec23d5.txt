@@ -1,4 +1,0 @@
-tast-tests: remove 'set noparent' in top-level OWNERS files.
-
-Tast Test Repo OWNERS file does not need set noparent because it is a top-level OWNERS file
-

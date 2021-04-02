@@ -1,0 +1,13 @@
+arc: Promote arc.ConciergeCrash
+
+arc.ConciergeCrash has been green for a while.
+
+BUG=None
+TEST=tast run arc.ConciergeCrash
+TEST=CQ
+
+Change-Id: <a href="https://chromium-review.googlesource.com/#/q/Ib1d563d12c197736f531fb7d3dfbe65338d145d2">Ib1d563d12c197736f531fb7d3dfbe65338d145d2</a>
+Reviewed-on: <a href="https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2801815">https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2801815</a>
+Tested-by: Ryo Hashimoto <hashimoto@chromium.org>
+Reviewed-by: Hidehiko Abe <hidehiko@chromium.org>
+Commit-Queue: Ryo Hashimoto <hashimoto@chromium.org>

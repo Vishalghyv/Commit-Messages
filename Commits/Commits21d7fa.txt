@@ -1,0 +1,20 @@
+network: VPNConnect: Collect logs after shutdown VPN server
+
+We are collecting logs from VPN server in the VPNConnect test after the
+test is done. Currently we observed that the collected charon.log are
+always not finished. Since we collect the log before charon process
+exits, a potential reason could be charon hasn't flushed all contents
+into the disk. This patch changes the order to shutting down charon at
+first to avoid that happening.
+
+BUG=b:184128838
+TEST=run tests on octopus 5 times, observed a completed log in all
+  attempts.
+
+Change-Id: <a href="https://chromium-review.googlesource.com/#/q/Ie9826d0f8d63846ecb451239d9bd32d7a688fef7">Ie9826d0f8d63846ecb451239d9bd32d7a688fef7</a>
+Reviewed-on: <a href="https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2796779">https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2796779</a>
+Tested-by: Jie Jiang <jiejiang@chromium.org>
+Commit-Queue: Jie Jiang <jiejiang@chromium.org>
+Reviewed-by: Hugo Benichi <hugobenichi@google.com>
+Reviewed-by: Taoyu Li <taoyl@chromium.org>
+Reviewed-by: Hidehiko Abe <hidehiko@chromium.org>

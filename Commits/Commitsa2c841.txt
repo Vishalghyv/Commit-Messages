@@ -1,0 +1,15 @@
+tast-tests: promote arc.Optin to critical
+
+Optin has been stable for the last 20 runs. The only failures are due to infra
+related problems. Also increased the retry count for the unstable version to
+see if one retry is enough to get the same stability.
+
+BUG=b:177341225
+TEST=tast run DUT arc.Optin
+TEST=tastboard shows test is stable except for infra issues
+
+Change-Id: <a href="https://chromium-review.googlesource.com/#/q/I8add4afd00305ab2328d03f81e3c43dc84e43c77">I8add4afd00305ab2328d03f81e3c43dc84e43c77</a>
+Reviewed-on: <a href="https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2800215">https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2800215</a>
+Tested-by: Muhammad Hasan Khan <mhasank@chromium.org>
+Reviewed-by: Ricardo Quesada <ricardoq@chromium.org>
+Commit-Queue: Muhammad Hasan Khan <mhasank@chromium.org>

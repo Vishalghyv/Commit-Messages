@@ -1,0 +1,13 @@
+appcompat:Update Tast test for Adobe Illustrator Draw
+
+Adobe Illustrator Draw is getting failed in launch due to the sign in button not being clicked on a single click. Added a code to fix it.
+
+BUG=b:183139942
+TEST=tast run <eve> arcappcompat.AdobeIllustratorDraw
+
+Change-Id: <a href="https://chromium-review.googlesource.com/#/q/I70a2d4494074efdcbbb522538b7bbd607cd50d17">I70a2d4494074efdcbbb522538b7bbd607cd50d17</a>
+Reviewed-on: <a href="https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2776463">https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2776463</a>
+Reviewed-by: Renuga Nanjappan <rnanjappan@chromium.org>
+Reviewed-by: Katherine Threlkeld <kathrelkeld@chromium.org>
+Tested-by: Meenakshi Thiyagarajan <mthiyagarajan@google.com>
+Commit-Queue: Meenakshi Thiyagarajan <mthiyagarajan@google.com>

@@ -1,6 +1,0 @@
-Revert "Disable arc.AuthPerf.managed"
-
-Reason for revert: .managed is fixed by crrev.com/i/3723508
-
-This reverts commit 0b88fdb2469edac937841a7203dc0014fbf30f03.
-

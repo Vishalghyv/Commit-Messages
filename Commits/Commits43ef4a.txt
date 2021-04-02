@@ -1,0 +1,12 @@
+tast-tests: Add test of ARC++ PIP rounded corners as hardware underlay
+
+BUG=chromium:1107460
+TEST=arc.PIPRoundedCornersUnderlay
+
+Change-Id: <a href="https://chromium-review.googlesource.com/#/q/I728a90fabb9da9a137f58804b0b069ca8ce3d7eb">I728a90fabb9da9a137f58804b0b069ca8ce3d7eb</a>
+Reviewed-on: <a href="https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2792688">https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2792688</a>
+Tested-by: Avery Musbach <amusbach@chromium.org>
+Commit-Queue: Avery Musbach <amusbach@chromium.org>
+Reviewed-by: Jun Mukai <mukai@chromium.org>
+Reviewed-by: Mitsuru Oshima <oshima@chromium.org>
+Reviewed-by: Tatsuhisa Yamaguchi <yamaguchi@chromium.org>

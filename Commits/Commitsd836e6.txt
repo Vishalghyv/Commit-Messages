@@ -1,0 +1,12 @@
+wifi.HostapHwsim: dump more file info when run-all.sh doesn't run
+
+We're seeing some hard to explain failures.
+
+BUG=b:184102008
+TEST=run it as-is, and manually modifying the cmd path to be incorrect
+
+Change-Id: <a href="https://chromium-review.googlesource.com/#/q/Ie40984fc38a5577153f653d2af152757ef9d670b">Ie40984fc38a5577153f653d2af152757ef9d670b</a>
+Reviewed-on: <a href="https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2798567">https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2798567</a>
+Tested-by: Brian Norris <briannorris@chromium.org>
+Commit-Queue: Brian Norris <briannorris@chromium.org>
+Reviewed-by: Yen-lin Lai <yenlinlai@chromium.org>
