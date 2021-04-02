@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Vishalghyv/TastTests/Merge"
+	"github.com/Vishalghyv/Commit-Messages/Merge"
 
 	"github.com/mafredri/cdp"
 	"github.com/mafredri/cdp/devtool"

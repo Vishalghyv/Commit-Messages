@@ -1,4 +1,4 @@
-module github.com/Vishalghyv/TastTests
+module github.com/Vishalghyv/Commit-Messages
 
 go 1.16
 
