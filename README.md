@@ -7,6 +7,7 @@
 **[Milestone 1](#mile-stone-1)**<br>
 **[Milestone 2](#mile-stone-2)**<br>
 **[Milestone 3](#mile-stone-3)**<br>
+**[Code Snippets](#code-snippets)**<br>
 
 ## About 
 This Project implements scrapping of Git repositories on chromium for storing commit messages and information about contributors
@@ -14,11 +15,12 @@ This Project implements scrapping of Git repositories on chromium for storing co
 ## Installation Instructions
 TO BE DONE
 
-## Milestone 1: Last 10 commit messages in tast-tests repository
+## Milestone 1
+### Last 10 commit messages in tast-tests repository
 
 <img src="https://github.com/Vishalghyv/TastTests-Messages/blob/main/MileStone1.jpg" height="350" width="700" alt="MileStone 1">
 
-### Process
+### Process to solve
 
 1. Navigate to the given URL
 
@@ -31,11 +33,12 @@ TO BE DONE
 Navigate to next commit code
 
 
-## Milestone 2: Add command line arguments to your program
+## Milestone 2
+### Add command line arguments to your program
 
 <img src="https://github.com/Vishalghyv/TastTests-Messages/blob/main/MileStone2.jpg" height="350" width="700" alt="MileStone 2">
 
-### Process
+### Process to solve
 
 1. Using flags package adding command line arguments
 
@@ -43,11 +46,12 @@ Navigate to next commit code
 
 3. And there values taken from command line arguments
 
-## Milestone 3: Parse commit messages
+## Milestone 3
+### Parse commit messages
 
 <img src="https://github.com/Vishalghyv/TastTests-Messages/blob/main/MileStone3.jpg" height="350" width="700" alt="MileStone 3">
 
-### Process
+### Process to solve
 
 1. Parse commit messages to get author and reviewers
 
@@ -64,7 +68,7 @@ Navigate to next commit code
 6. Add the file path for csv file as command line argument as done in milestone 2
 
 
-## Code Snippets Involved
+## Code Snippets
 
 ### Main function to parse the HTML
 
