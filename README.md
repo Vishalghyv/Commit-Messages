@@ -4,16 +4,19 @@
 ### Table of Contents
 **[About](#about)**<br>
 **[Installation Instructions](#installation-instructions)**<br>
-**[Milestone 1](#mile-stone-1)**<br>
-**[Milestone 2](#mile-stone-2)**<br>
-**[Milestone 3](#mile-stone-3)**<br>
+**[Milestone 1](#milestone-1)**<br>
+**[Milestone 2](#milestone-2)**<br>
+**[Milestone 3](#milestone-3)**<br>
 **[Code Snippets](#code-snippets)**<br>
 
 ## About 
 This Project implements scrapping of Git repositories on chromium for storing commit messages and information about contributors
 
 ## Installation Instructions
-TO BE DONE
+1. Launch chromium with remote-debugging-port=9222, more details [here](https://github.com/mafredri/cdp)
+2. Run command `git clone https://github.com/Vishalghyv/Commit-Messages `
+3. Run `cd Commit-Messages`
+4. To execute the program run `go run main.go`
 
 ## Milestone 1
 ### Last 10 commit messages in tast-tests repository
