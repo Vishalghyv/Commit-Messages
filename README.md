@@ -21,7 +21,7 @@ This Project implements scrapping of Git repositories on chromium for storing co
 ## Milestone 1
 ### Last 10 commit messages in tast-tests repository
 
-<img src="https://github.com/Vishalghyv/TastTests-Messages/blob/main/MileStone1.jpg" height="350" width="700" alt="MileStone 1">
+<img src="https://github.com/Vishalghyv/TastTests-Messages/blob/main/Screenshots/MileStone1.jpg" height="350" width="700" alt="MileStone 1">
 
 ### Process to solve
 
@@ -39,7 +39,7 @@ Navigate to next commit code
 ## Milestone 2
 ### Add command line arguments to your program
 
-<img src="https://github.com/Vishalghyv/TastTests-Messages/blob/main/MileStone2.jpg" height="350" width="700" alt="MileStone 2">
+<img src="https://github.com/Vishalghyv/TastTests-Messages/blob/main/Screenshots/MileStone2.jpg" height="350" width="700" alt="MileStone 2">
 
 ### Process to solve
 
@@ -52,7 +52,7 @@ Navigate to next commit code
 ## Milestone 3
 ### Parse commit messages
 
-<img src="https://github.com/Vishalghyv/TastTests-Messages/blob/main/MileStone3.jpg" height="350" width="700" alt="MileStone 3">
+<img src="https://github.com/Vishalghyv/TastTests-Messages/blob/main/Screenshots/MileStone3.jpg" height="350" width="700" alt="MileStone 3">
 
 ### Process to solve
 
