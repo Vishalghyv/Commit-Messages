@@ -1,15 +1,19 @@
+/*
+	Package main implements scrapping of Git repositories on chromium for
+	storing commit messages and information about contributors
+*/
 package main
 
 import (
 	"context"
-	"encoding/csv"
 	"flag"
 	"fmt"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
+
+	"github.com/Vishalghyv/TastTests/Merge"
 
 	"github.com/mafredri/cdp"
 	"github.com/mafredri/cdp/devtool"
@@ -18,17 +22,17 @@ import (
 	"github.com/mafredri/cdp/rpcc"
 )
 
+// Structure for CLI arguments
 type Parameters struct {
 	URL, branch, commitsDir, contributorDir string
 	commitNum                               int
 	timeout                                 time.Duration
 }
 
-type Contributor struct {
-	name     string
-	created  int
-	reviewed int
-}
+var (
+	ctx context.Context
+	c   *cdp.Client
+)
 
 func main() {
 	var para = Parameters{}
@@ -42,16 +46,11 @@ func main() {
 	flag.StringVar(&para.contributorDir, "contributor-dir", "./Commits", "Contributor CSV folder path")
 	flag.Parse()
 
-	// var para = Parameters{commitNum: commitNum, URL: url, branch: branch, timeout: timeout, commitsDir: commitsDir, contributorDir: contributorDir}
-
 	err := run(para)
 	if err != nil {
 		fmt.Println(err)
 	}
 }
-
-var ctx context.Context
-var c *cdp.Client
 
 func run(parameters Parameters) error {
 	// Context
@@ -68,7 +67,6 @@ func run(parameters Parameters) error {
 		}
 	}
 
-	// Connection
 	// Initiate a new RPC connection to the Chrome DevTools Protocol target.
 	conn, err := rpcc.DialContext(ctx, pt.WebSocketDebuggerURL)
 	if err != nil {
@@ -107,7 +105,6 @@ func run(parameters Parameters) error {
 		if _, err = domContent.Recv(); err != nil {
 			return nil, err
 		}
-
 		fmt.Printf("Page loaded with frame ID: %s\n", nav.FrameID)
 
 		doc, err := c.DOM.GetDocument(ctx, nil)
@@ -126,22 +123,21 @@ func run(parameters Parameters) error {
 
 	// Get the outer HTML for the page.
 	QueryNodes, err := QuerySelectorAll(doc.Root.NodeID, "ul.RefList-items > li > a")
-	fmt.Println(QueryNodes)
 
 	if err != nil {
 		return err
 	}
 	var branch string
 
+	// Search in Node for branch URL
 	for _, nodeId := range QueryNodes.NodeIDs {
-
 		result, err := GetOuterHTML(nodeId)
 
 		if err != nil {
 			return err
 		}
 
-		if strings.Contains(result.OuterHTML, "main") {
+		if strings.Contains(result.OuterHTML, parameters.branch) {
 			branch = strings.Split(result.OuterHTML, "\">")[0]
 			branch = strings.TrimLeft(branch, "<a href=\"")
 			break
@@ -156,71 +152,70 @@ func run(parameters Parameters) error {
 		return err
 	}
 
-	// Get commit code for first message
+	// Get commit code for latest message
 	html, err := QueryHTML(doc.Root.NodeID, ".u-monospace.Metadata td")
 
 	if err != nil {
 		return err
 	}
 
-	commitCode := strings.Replace(strings.TrimRight(html, "</td>"), "<td>", "", 1)
+	commitCode := strings.Split(strings.TrimRight(html, "</td>"), ">")[1]
 	fmt.Println("Commit Code ", commitCode)
 
-	// Store parsed contributors
-	var authors []string
-	var reviewers []string
-
-	addition := ""
 	if parameters.URL[len(parameters.URL)-1] == '/' {
-		addition += "+/"
+		parameters.URL += "+/"
 	} else {
-		addition += "/+/"
+		parameters.URL += "/+/"
 	}
 
-	// MileStone 1 - storing of commit messages
+	// Creation of directory for commit messages and contributor csv file
+
+	if _, err := os.Stat(parameters.commitsDir); os.IsNotExist(err) {
+		os.Mkdir(parameters.commitsDir, os.ModeDir|0755)
+	}
+
+	if _, err := os.Stat(parameters.contributorDir); os.IsNotExist(err) {
+		os.Mkdir(parameters.contributorDir, os.ModeDir|0755)
+	}
+
+	// Store parsed contributors
+	var authors, reviewers []string
+
+	// Parse commit message, contributors info
+	// Navigate to parent commit message
 	for i := 1; i <= parameters.commitNum; i++ {
-
-		Link := parameters.URL + addition + commitCode
-
 		// Navigate to commit code url
+		Link := parameters.URL + commitCode
+
 		doc, err = OpenDoc(Link, "https://google.com")
 		if err != nil {
 			return err
 		}
 		// Get complete commit message
-		html, err = QueryHTML(doc.Root.NodeID, ".MetadataMessage")
+		rawMessage, err := QueryHTML(doc.Root.NodeID, ".MetadataMessage")
 
 		if err != nil {
 			return err
 		}
-		// Convert HTML characters
-		r := strings.NewReplacer("&lt;", "<", "&gt;", ">")
 
-		completeMessage := strings.Split(r.Replace(html), "\n")
+		// Getting Commit Message and Contributors
+		commitMessage, newAuthors, newReviewers := parseMessage(rawMessage)
 
-		newAuthors, newReviewers, message := parseMessage(completeMessage)
-
+		// Storing Contributors
 		authors = append(authors, newAuthors...)
 		reviewers = append(reviewers, newReviewers...)
 
-		message[0] = strings.Split(message[0], ">")[1]
-
-		// Store commit message in file
-		if _, err := os.Stat(parameters.commitsDir); os.IsNotExist(err) {
-			os.Mkdir(parameters.commitsDir, os.ModeDir|0755)
-		}
-
+		// Writing Commit Message
 		textFile := parameters.commitsDir + "./Commits" + commitCode[0:6] + ".txt"
-		err = CreateFile(textFile, message)
+		err = WriteMessage(textFile, commitMessage)
 
 		if err != nil {
 			return err
 		}
 
+		// Getting next commit code
 		search := strings.ReplaceAll(parameters.URL, "https://chromium.googlesource.com", "")
-		search += addition
 
-		// Get next commit code
 		html, err = QueryHTML(doc.Root.NodeID, "a[href*='"+search+commitCode+"%5E']")
 
 		if err != nil {
@@ -232,131 +227,19 @@ func run(parameters Parameters) error {
 
 	}
 
-	// MileStone Three - Saving contributors data
 	// Sort Authors and Reviewers
 	sort.Strings(authors)
 	sort.Strings(reviewers)
 
-	var last Contributor
-
-	if authors[0] > reviewers[0] {
-		last.name = reviewers[0]
-	} else {
-		last.name = authors[0]
-	}
-
-	// Create contributor csv file
-	if _, err := os.Stat(parameters.contributorDir); os.IsNotExist(err) {
-		os.Mkdir(parameters.contributorDir, os.ModeDir|0755)
-	}
-
-	file, err := os.Create(parameters.contributorDir + "./Contributors.csv")
-
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
-	writer := csv.NewWriter(file)
-
-	defer writer.Flush()
-
-	writer.Write([]string{
-		"contributor",
-		"created",
-		"reviewed",
-	})
-
-	MergeSort(authors, reviewers, last, writer)
+	// Merging and Writing contributors in CSV
+	Merge.MergeWrite(authors, reviewers, parameters.contributorDir)
 
 	return nil
 }
 
-func write(last Contributor, writer *csv.Writer) {
-	if last.name == "" {
-		return
-	}
-	fmt.Println("Writing", last.name, last.created, last.reviewed)
-	writer.Write([]string{
-		last.name,
-		strconv.Itoa(last.created),
-		strconv.Itoa(last.reviewed),
-	})
-}
+// Helper Functions
 
-func MergeSort(authors []string, reviewers []string, last Contributor, writer *csv.Writer) {
-	var i, j int
-	// Merge Sorted authors and reviewers, and Write unqiue contributors in csv file
-	for i < len(authors) && j < len(reviewers) {
-		if authors[i] < reviewers[j] {
-
-			if last.name != authors[i] {
-				// Write the contributor and create new contributor
-				write(last, writer)
-				last = Contributor{}
-				last.name = authors[i]
-			}
-			last.created++
-			i++
-		} else if authors[i] > reviewers[j] {
-
-			if last.name != reviewers[j] {
-				// Write the contributor and create new contributor
-				write(last, writer)
-				last = Contributor{}
-				last.name = reviewers[j]
-			}
-			last.reviewed++
-			j++
-		} else {
-			if last.name != authors[i] {
-				// Write the contributor and create new contributor
-				write(last, writer)
-				last = Contributor{}
-				last.name = authors[i]
-			}
-			last.created++
-			last.reviewed++
-			i++
-			j++
-		}
-
-	}
-	write(last, writer)
-	last = Contributor{}
-
-	for i < len(authors) {
-		if i == len(authors)-1 && last.name == authors[i] {
-			last.created++
-			write(last, writer)
-		}
-		if last.name != authors[i] {
-			write(last, writer)
-			last = Contributor{}
-			last.name = authors[i]
-		}
-		last.created++
-		i++
-	}
-
-	for j < len(reviewers) {
-		if j == len(reviewers)-1 && last.name == reviewers[j] {
-			last.reviewed++
-			write(last, writer)
-		}
-
-		if last.name != reviewers[j] {
-			write(last, writer)
-			last = Contributor{}
-			last.name = reviewers[j]
-		}
-		last.reviewed++
-		j++
-	}
-}
-
-func CreateFile(fileName string, commitMessage []string) error {
+func WriteMessage(fileName string, commitMessage []string) error {
 	f, err := os.Create(fileName)
 
 	if err != nil {
@@ -365,16 +248,11 @@ func CreateFile(fileName string, commitMessage []string) error {
 
 	defer f.Close()
 	for _, message := range commitMessage {
-		_, err2 := f.WriteString(message)
+		f.WriteString(message)
 		f.WriteString("\n")
-
-		if err2 != nil {
-			return err2
-		}
 	}
 
 	return nil
-
 }
 
 func QuerySelectorAll(NodeID dom.NodeID, Selector string) (*dom.QuerySelectorAllReply, error) {
@@ -414,13 +292,16 @@ func QueryHTML(NodeID dom.NodeID, Selector string) (string, error) {
 
 }
 
-func parseMessage(completeMessage []string) ([]string, []string, []string) {
+func parseMessage(rawMessage string) ([]string, []string, []string) {
+	// Convert HTML characters
+	r := strings.NewReplacer("&lt;", "<", "&gt;", ">")
+
+	completeMessage := strings.Split(r.Replace(rawMessage), "\n")
+
 	var authors, reviewers, message []string
 	complete := false
 	for _, value := range completeMessage {
 		if strings.Contains(value, "Tested-by:") && (value[0] == ' ' || value[0] == 'T') {
-			// fmt.Println(strings.TrimLeft(strings.Trim(value, " "), "Tested-by:")[1:])
-			// fmt.Println(value)
 			authors = append(authors, strings.TrimLeft(strings.Trim(value, " "), "Tested-by:")[1:])
 		}
 
@@ -435,5 +316,7 @@ func parseMessage(completeMessage []string) ([]string, []string, []string) {
 			}
 		}
 	}
-	return authors, reviewers, message
+	message[0] = strings.Split(message[0], ">")[1]
+
+	return message, authors, reviewers
 }
