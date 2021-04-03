@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 )
 
@@ -93,6 +94,10 @@ func appendNew(previous Contributor, name string, contributors []Contributor) (C
 
 // Collects contributors stats from author and reviewers slices
 func merge(authors []string, reviewers []string) []Contributor {
+
+	// Sort Authors and Reviewers
+	sort.Strings(authors)
+	sort.Strings(reviewers)
 
 	contributors := []Contributor{}
 	previous := Contributor{}

@@ -1,0 +1,20 @@
+security.AltSyscall.*: drop NULL argument test
+
+According to glibc BZ #27662 calling adjtimex/clock_adjtime with
+a NULL arg is undefined behaviour and anything can happen, even
+segfaults which occur with glibc 2.32 on 32bit arm systems.
+
+I verified the sources that no other direct NULL call happens so
+we can drop this test but if at runtime any software fails eg by
+passing a NULL pointer variable, the call should be preceded by
+a NULL check.
+
+BUG=chromium:1190217
+TEST=Local builds on kevin; CQ.
+
+Change-Id: <a href="https://chromium-review.googlesource.com/#/q/I158737e3fb613e727c0333a7105858edd800dd4a">I158737e3fb613e727c0333a7105858edd800dd4a</a>
+Reviewed-on: <a href="https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2792590">https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2792590</a>
+Reviewed-by: Hidehiko Abe <hidehiko@chromium.org>
+Reviewed-by: Jorge Lucangeli Obes <jorgelo@chromium.org>
+Auto-Submit: Adrian Ratiu <adrian.ratiu@collabora.corp-partner.google.com>
+Tested-by: Manoj Gupta <manojgupta@chromium.org>

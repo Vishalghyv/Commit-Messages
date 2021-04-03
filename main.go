@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"sort"
 	"strings"
 	"time"
 
@@ -29,11 +28,6 @@ type Parameters struct {
 	commitNum                               int
 	timeout                                 time.Duration
 }
-
-var (
-	ctx context.Context
-	c   *cdp.Client
-)
 
 func main() {
 	var para = Parameters{}
@@ -54,11 +48,10 @@ func main() {
 }
 
 func run(parameters Parameters) error {
-	// Context
 	ctx, cancel := context.WithTimeout(context.Background(), parameters.timeout)
 	defer cancel()
 
-	// Port used
+	// Devtools package used for finding websocket URL
 	devt := devtool.New("http://127.0.0.1:9222")
 	pt, err := devt.Get(ctx, devtool.Page)
 	if err != nil {
@@ -72,23 +65,21 @@ func run(parameters Parameters) error {
 
 	defer conn.Close() // Leaving connections open will leak memory.
 
-	// Global cdp.Client is defined - Important to not redefine it
-	c = cdp.NewClient(conn)
+	c := cdp.NewClient(conn)
+	domClient := c.DOM
 
 	// Navigate to repository
-	Link := parameters.URL
-	doc := OpenDoc(c, Link, "https://google.com")
+	navigate(ctx, c, parameters.URL)
+	rootNodeID := getRootNodeID(ctx, domClient)
 
-	branchURL := firstCommmitURL(doc.Root.NodeID, parameters.branch)
+	branchURL := getBranchURL(ctx, domClient, rootNodeID, parameters.branch)
 
 	// Navigate to branch
-	Link = "https://chromium.googlesource.com" + branchURL
-
-	doc = OpenDoc(c, Link, "https://google.com")
+	navigate(ctx, c, branchURL)
+	rootNodeID = getRootNodeID(ctx, domClient)
 
 	// Get commit code for latest message
-	commitCode := parseCommitCode(doc.Root.NodeID, ".u-monospace.Metadata td", "</td>")
-
+	commitCode := parseCommitCode(ctx, domClient, rootNodeID, ".u-monospace.Metadata td", "</td>")
 	fmt.Println("Commit Code ", commitCode)
 
 	if parameters.URL[len(parameters.URL)-1] == '/' {
@@ -98,54 +89,51 @@ func run(parameters Parameters) error {
 	}
 
 	// Creation of directory for commit messages and contributor csv file
+	createDir(parameters.commitsDir)
 
-	if _, err := os.Stat(parameters.commitsDir); os.IsNotExist(err) {
-		os.Mkdir(parameters.commitsDir, os.ModeDir|0755)
-	}
+	createDir(parameters.contributorDir)
 
-	if _, err := os.Stat(parameters.contributorDir); os.IsNotExist(err) {
-		os.Mkdir(parameters.contributorDir, os.ModeDir|0755)
-	}
-
-	// Store parsed contributors
+	// Store contributors
 	var authors, reviewers []string
 
 	// Parse commit message, contributors info
 	// Navigate to parent commit message
 	for i := 1; i <= parameters.commitNum; i++ {
-		// Navigate to commit code url
+		// Navigate to commit url
 		Link := parameters.URL + commitCode
-
-		doc = OpenDoc(c, Link, "https://google.com")
+		navigate(ctx, c, Link)
+		rootNodeID = getRootNodeID(ctx, domClient)
 
 		// Getting Commit Message and Contributors
-		commitMessage, newAuthors, newReviewers := parseMessage(doc.Root.NodeID)
+		commitMessage, newAuthors, newReviewers := parseMessage(ctx, domClient, rootNodeID)
 
-		// Storing Contributors
+		// Write Commit Message
+		filePath := parameters.commitsDir + "./Commits" + commitCode[0:6] + ".txt"
+		WriteMessage(filePath, commitMessage)
+
+		// Store Contributors
 		authors = append(authors, newAuthors...)
 		reviewers = append(reviewers, newReviewers...)
 
-		// Writing Commit Message
-		textFile := parameters.commitsDir + "./Commits" + commitCode[0:6] + ".txt"
-		WriteMessage(textFile, commitMessage)
-
-		// Getting next commit code
+		// Get next commit code
 		search := strings.ReplaceAll(parameters.URL, "https://chromium.googlesource.com", "")
 
-		commitCode = parseCommitCode(doc.Root.NodeID, "a[href*='"+search+commitCode+"%5E']", "</a>")
+		commitCode = parseCommitCode(ctx, domClient, rootNodeID, "a[href*='"+search+commitCode+"%5E']", "</a>")
 
 		fmt.Println("Commit Code ", commitCode)
 
 	}
 
-	// Sort Authors and Reviewers
-	sort.Strings(authors)
-	sort.Strings(reviewers)
-
 	// Merging and Writing contributors in CSV
 	Merge.MergeWrite(authors, reviewers, parameters.contributorDir)
 
 	return nil
+}
+
+func createDir(path string) {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		os.Mkdir(path, os.ModeDir|0755)
+	}
 }
 
 func isError(err error) {
@@ -154,13 +142,11 @@ func isError(err error) {
 	}
 }
 
-// Function to navigate to a URL and return opened Document
-func OpenDoc(client *cdp.Client, URL string, Referrer string) *dom.GetDocumentReply {
-	// Create the Navigate arguments with the optional Referrer field set.
-	navArgs := page.NewNavigateArgs(URL).
-		SetReferrer(Referrer)
+// navigate to the URL and wait for DOMContentEventFired
+func navigate(ctx context.Context, client *cdp.Client, URL string) {
 
-	nav, err := client.Page.Navigate(ctx, navArgs)
+	// Enable events on the Page domain
+	err := client.Page.Enable(ctx)
 	isError(err)
 
 	// Open a DOMContentEventFired client to buffer this event.
@@ -168,33 +154,32 @@ func OpenDoc(client *cdp.Client, URL string, Referrer string) *dom.GetDocumentRe
 	isError(err)
 	defer domContent.Close()
 
-	// Enable events on the Page domain
-	err = client.Page.Enable(ctx)
+	nav, err := client.Page.Navigate(ctx, page.NewNavigateArgs(URL))
 	isError(err)
 
-	// Wait until we have a DOMContentEventFired event.
 	_, err = domContent.Recv()
 	isError(err)
 
 	fmt.Printf("Page loaded with frame ID: %s\n", nav.FrameID)
-
-	doc, err := client.DOM.GetDocument(ctx, nil)
-	isError(err)
-
-	return doc
 }
 
-func firstCommmitURL(NodeID dom.NodeID, branchName string) string {
-	// Parse url for branch
+// Returns document root NodeID
+func getRootNodeID(ctx context.Context, domClient cdp.DOM) dom.NodeID {
+	doc, err := domClient.GetDocument(ctx, nil)
+	isError(err)
 
-	// Get the outer HTML for the page.
-	QueryNodes := QuerySelectorAll(NodeID, "ul.RefList-items > li > a")
+	return doc.Root.NodeID
+}
+
+// Returns Branch url from list of branch names given on repository page
+func getBranchURL(ctx context.Context, domClient cdp.DOM, RootID dom.NodeID, branchName string) string {
 
 	var branchURL string
+	QueryNodes := QuerySelectorAll(ctx, domClient, RootID, "ul.RefList-items > li > a")
 
-	// Search in Node for branch URL
+	// Search in Nodes for branch URL
 	for _, nodeId := range QueryNodes.NodeIDs {
-		result := GetOuterHTML(nodeId)
+		result := GetOuterHTML(ctx, domClient, nodeId)
 
 		if strings.Contains(result.OuterHTML, branchName) {
 			branchURL = strings.Split(result.OuterHTML, "\">")[0]
@@ -203,32 +188,37 @@ func firstCommmitURL(NodeID dom.NodeID, branchName string) string {
 		}
 	}
 
+	branchURL = "https://chromium.googlesource.com" + branchURL
+
 	return branchURL
 }
 
-func parseCommitCode(NodeID dom.NodeID, selector string, tag string) string {
-	html := QueryHTML(NodeID, selector)
+// Return commit code as per tag
+func parseCommitCode(ctx context.Context, domClient cdp.DOM, NodeID dom.NodeID, selector string, tag string) string {
+	html := QueryHTML(ctx, domClient, NodeID, selector)
 
 	commitCode := strings.Split(strings.TrimRight(html, tag), ">")[1]
 
 	return commitCode
 }
 
+// Write Commit messages
 func WriteMessage(fileName string, commitMessage []string) {
 	f, err := os.Create(fileName)
 
 	isError(err)
 
 	defer f.Close()
+
 	for _, message := range commitMessage {
-		f.WriteString(message)
-		f.WriteString("\n")
+		_, err := f.WriteString(message + "\n")
+		isError(err)
 	}
 
 }
 
-func QuerySelectorAll(NodeID dom.NodeID, Selector string) *dom.QuerySelectorAllReply {
-	QueryNodes, err := c.DOM.QuerySelectorAll(ctx, &dom.QuerySelectorAllArgs{
+func QuerySelectorAll(ctx context.Context, domClient cdp.DOM, NodeID dom.NodeID, Selector string) *dom.QuerySelectorAllReply {
+	QueryNodes, err := domClient.QuerySelectorAll(ctx, &dom.QuerySelectorAllArgs{
 		NodeID:   NodeID,
 		Selector: Selector,
 	})
@@ -236,8 +226,8 @@ func QuerySelectorAll(NodeID dom.NodeID, Selector string) *dom.QuerySelectorAllR
 	return QueryNodes
 }
 
-func QuerySelector(NodeID dom.NodeID, Selector string) *dom.QuerySelectorReply {
-	QueryNode, err := c.DOM.QuerySelector(ctx, &dom.QuerySelectorArgs{
+func QuerySelector(ctx context.Context, domClient cdp.DOM, NodeID dom.NodeID, Selector string) *dom.QuerySelectorReply {
+	QueryNode, err := domClient.QuerySelector(ctx, &dom.QuerySelectorArgs{
 		NodeID:   NodeID,
 		Selector: Selector,
 	})
@@ -245,28 +235,38 @@ func QuerySelector(NodeID dom.NodeID, Selector string) *dom.QuerySelectorReply {
 	return QueryNode
 }
 
-func GetOuterHTML(NodeId dom.NodeID) *dom.GetOuterHTMLReply {
-	result, err := c.DOM.GetOuterHTML(ctx, &dom.GetOuterHTMLArgs{
+func GetOuterHTML(ctx context.Context, domClient cdp.DOM, NodeId dom.NodeID) *dom.GetOuterHTMLReply {
+	result, err := domClient.GetOuterHTML(ctx, &dom.GetOuterHTMLArgs{
 		NodeID: &NodeId,
 	})
 	isError(err)
 	return result
 }
 
-// Function to select a node and return html output for it
-func QueryHTML(NodeID dom.NodeID, Selector string) string {
-	QueryNode := QuerySelector(NodeID, Selector)
+// Selects a node using selector and return html output for it
+func QueryHTML(ctx context.Context, domClient cdp.DOM, NodeID dom.NodeID, Selector string) string {
+	QueryNode := QuerySelector(ctx, domClient, NodeID, Selector)
 
-	result := GetOuterHTML(QueryNode.NodeID)
+	result := GetOuterHTML(ctx, domClient, QueryNode.NodeID)
 
 	return result.OuterHTML
 }
 
-func parseMessage(NodeID dom.NodeID) ([]string, []string, []string) {
+// Pareses message and return commit message and contributors stat
+func parseMessage(ctx context.Context, domClient cdp.DOM, NodeID dom.NodeID) ([]string, []string, []string) {
 
 	// Get complete commit message
-	rawMessage := QueryHTML(NodeID, ".MetadataMessage")
+	rawMessage := QueryHTML(ctx, domClient, NodeID, ".MetadataMessage")
 
+	commitMessage := getCommitMessage(rawMessage)
+
+	authors, reviewers := parseContributorStat(commitMessage)
+
+	return commitMessage, authors, reviewers
+}
+
+// Modifies raw message and returns commit message from it
+func getCommitMessage(rawMessage string) []string {
 	// Convert HTML characters
 	r := strings.NewReplacer("&lt;", "<", "&gt;", ">")
 
@@ -275,11 +275,10 @@ func parseMessage(NodeID dom.NodeID) ([]string, []string, []string) {
 	commitMessage[0] = strings.Split(commitMessage[0], ">")[1]
 	commitMessage = commitMessage[:len(commitMessage)-1]
 
-	authors, reviewers := parseContributorStat(commitMessage)
-
-	return commitMessage, authors, reviewers
+	return commitMessage
 }
 
+// Loops thorugh commit message and return contributors stats
 func parseContributorStat(commitMessage []string) ([]string, []string) {
 	var authors, reviewers []string
 
