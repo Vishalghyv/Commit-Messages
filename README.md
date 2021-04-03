@@ -4,6 +4,7 @@
 ### Table of Contents
 **[About](#about)**<br>
 **[Installation Instructions](#installation-instructions)**<br>
+**[Command Line Arguments](#command-line-arguments)**<br>
 **[Milestone 1](#milestone-1)**<br>
 **[Milestone 2](#milestone-2)**<br>
 **[Milestone 3](#milestone-3)**<br>
@@ -17,6 +18,22 @@ This Project implements scrapping of Git repositories on chromium for storing co
 2. Run command `git clone https://github.com/Vishalghyv/Commit-Messages `
 3. Run `cd Commit-Messages`
 4. To execute the program run `go run main.go`
+
+## Command Line Arguments
+
+Command Line Arguments that can be passed
+1. Commit Numbers by default `10`.  
+  Can be specified by --commit-num
+2. Repository URL by default `http://chromium.googlesource.com/chromiumos/platform/tast-tests/`  
+  Can be specified by --url
+3. Branch name by default `main`.  
+  Can be specified by --branch
+4. Timeout in sec --timeout by default `10` sec.  
+  Can be specified by --timeout
+5. Commit message files folder path by default `./Commits`.  
+  Can be specified by --commits-dir
+6. CSV files folder path. By default `./Commits`.  
+  Can be specified by --csv-dir
 
 ## Milestone 1
 ### Last 10 commit messages in tast-tests repository
