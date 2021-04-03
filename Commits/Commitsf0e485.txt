@@ -1,0 +1,10 @@
+docs: Explain how to access working Servo device in automated runs
+
+BUG=chromium:1193400
+TEST=None
+
+Change-Id: <a href="https://chromium-review.googlesource.com/#/q/I827cf29b13d79bd9ede43d42d2b1495f1b23e3f7">I827cf29b13d79bd9ede43d42d2b1495f1b23e3f7</a>
+Reviewed-on: <a href="https://chromium-review.googlesource.com/c/chromiumos/platform/tast/+/2796793">https://chromium-review.googlesource.com/c/chromiumos/platform/tast/+/2796793</a>
+Tested-by: Shuhei Takahashi <nya@chromium.org>
+Reviewed-by: Tom Hughes <tomhughes@chromium.org>
+Commit-Queue: Shuhei Takahashi <nya@chromium.org>

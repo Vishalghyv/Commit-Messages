@@ -1,0 +1,33 @@
+touch_updater : Remove set -e from scripts to prevent silent failure
+
+In chromeos-touch-config-update.sh and chromeos-touch-firmware-update.sh,
+we have set -e, which causes the scripts to exit immediately on error.
+
+This is incorrect behavior as we want to be able to output a message to
+the system log that the update failed, or in the case of the firmware update,
+retry the firmware update.
+
+Also, die early on an error condition.
+Check the return value after issuing the printf to update_config.
+Die early instead of checking the config csum in a loop 5 times.
+
+Signed-off-by: Benson Leung <bleung@chromium.org>
+
+BUG=chromium:223805,chromium:223814
+TEST=Corrupt the 224sl.raw file on a test image.
+edit this file on spring : /opt/google/touch/config/224sl.raw
+Modify the 3rd line of the file, which should be a 6 digit
+hexadecimal number. This is the info block CRC.
+Replace it with 000000
+Do the same with the 4th line, which is the config crc.
+Run : /opt/google/touch/scripts/chromeos-touch-config-update.sh -d atmel_mxt_tp
+This should log the error as follows.
+Device config checksum : a84914
+New config checksum : 000000
+error: Config update failed. ret=1
+
+Change-Id: <a href="https://chromium-review.googlesource.com/#/q/Icb66a0bfd93a950f6c85a2190a06dc47e248be71">Icb66a0bfd93a950f6c85a2190a06dc47e248be71</a>
+Reviewed-on: <a href="https://gerrit.chromium.org/gerrit/46478">https://gerrit.chromium.org/gerrit/46478</a>
+Reviewed-by: Yufeng Shen <miletus@chromium.org>
+Commit-Queue: Benson Leung <bleung@chromium.org>
+Tested-by: Benson Leung <bleung@chromium.org>

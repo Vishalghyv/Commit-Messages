@@ -1,0 +1,20 @@
+TAST: Update Wifi80211ax blocklist models
+
+Some platforms that were not on the blocklist for the attribute actually
+had models that did not support AX. These models were added to another
+blocklist so that they would be skipped on.
+
+context: chromium:2692943
+
+Exempt-From-Owner-Approval: Blocklist strategy has been approved in
+context cl.
+
+BUG=b:183954180
+TEST=None
+
+Change-Id: <a href="https://chromium-review.googlesource.com/#/q/I2dbff9e29e3ab94295a285802b93cdb82a750d52">I2dbff9e29e3ab94295a285802b93cdb82a750d52</a>
+Reviewed-on: <a href="https://chromium-review.googlesource.com/c/chromiumos/platform/tast/+/2792463">https://chromium-review.googlesource.com/c/chromiumos/platform/tast/+/2792463</a>
+Tested-by: Billy Zhao <billyzhao@chromium.org>
+Reviewed-by: Nicolas Norvez <norvez@chromium.org>
+Reviewed-by: Kevin Lund <kglund@google.com>
+Commit-Queue: Billy Zhao <billyzhao@chromium.org>

@@ -1,0 +1,14 @@
+Add cellular_multisim attr to Tast
+
+This will be used for Tast tests that require a DUT with Cellular
+provisioned with both pSIM and eSIM profiles.
+
+BUG=b:177103167
+TEST=none
+
+Change-Id: <a href="https://chromium-review.googlesource.com/#/q/Id70b8fd82a2751b5834e07a6237b62cb11521cf7">Id70b8fd82a2751b5834e07a6237b62cb11521cf7</a>
+Reviewed-on: <a href="https://chromium-review.googlesource.com/c/chromiumos/platform/tast/+/2800144">https://chromium-review.googlesource.com/c/chromiumos/platform/tast/+/2800144</a>
+Tested-by: Steven Bennetts <stevenjb@chromium.org>
+Reviewed-by: Hidehiko Abe <hidehiko@chromium.org>
+Reviewed-by: Harpreet Grewal <harpreet@chromium.org>
+Commit-Queue: Steven Bennetts <stevenjb@chromium.org>

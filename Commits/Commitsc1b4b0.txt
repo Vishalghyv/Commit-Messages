@@ -1,0 +1,15 @@
+tast: add support for companion DUTs with TLW
+
+This CL is the third one in a series to support companion DUTs.
+Companion DUTs now use TLW to resolve their host information if TLW is
+available.
+New unit test has been added and passed
+
+BUG=chromium:1185396
+TEST=fast_build.sh -T
+
+Change-Id: <a href="https://chromium-review.googlesource.com/#/q/I4977182a1be3f2c350168dfb422e6ed9c357c5e1">I4977182a1be3f2c350168dfb422e6ed9c357c5e1</a>
+Reviewed-on: <a href="https://chromium-review.googlesource.com/c/chromiumos/platform/tast/+/2795267">https://chromium-review.googlesource.com/c/chromiumos/platform/tast/+/2795267</a>
+Commit-Queue: Seewai Fu <seewaifu@google.com>
+Tested-by: Seewai Fu <seewaifu@google.com>
+Reviewed-by: Shuhei Takahashi <nya@chromium.org>

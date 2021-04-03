@@ -1,0 +1,48 @@
+touch-updater : Add initial touch updater scripts
+
+Adds the following files :
+scripts/chromeos-touch-config-update.sh
+scripts/chromeos-touch-firmware-update.conf
+scripts/chromeos-touch-firmware-update.sh
+scripts/chromeos-touch-common.sh
+
+The config update and firmware update scripts are based on
+the latest version found in the internal link overlay.
+
+The config updater has been significantly cleaned up, with
+a die function added, proper ${} around variables, etc.
+
+Signed-off-by: Benson Leung <bleung@chromium.org>
+
+BUG=chromium-os:39392
+TEST=Install the four scripts here :
+/opt/google/touch/scripts/chromeos-touch-config-update.sh
+/opt/google/touch/scripts/chromeos-touch-firmware-update.sh
+/opt/google/touch/scripts/chromeos-touch-common.sh
+/etc/init/chromeos-touch-update.conf
+
+Then run :
+start chromeos-touch-update.conf on Pixel.
+Check that the update check happens properly.
+
+Here is a normal no-update check :
+chromeos-touch-firmware-update[6802]-atmel_mxt_tp: Product ID : 130.1
+chromeos-touch-firmware-update[6802]-atmel_mxt_tp: Current Firmware: 1.0.170
+chromeos-touch-firmware-update[6802]-atmel_mxt_tp: Updater Firmware: 1.0.170
+chromeos-touch-firmware-update[6802]-atmel_mxt_tp: Firmware up to date.
+chromeos-touch-config-update[6802]-atmel_mxt_tp: Device config checksum : ae968a
+chromeos-touch-config-update[6802]-atmel_mxt_tp: New config checksum : ae968a
+chromeos-touch-config-update[6802]-atmel_mxt_tp: Config is up-to-date, no need to update
+chromeos-touch-firmware-update[6802]-atmel_mxt_ts: Product ID : 162.0
+chromeos-touch-firmware-update[6802]-atmel_mxt_ts: Current Firmware: 1.1.170
+chromeos-touch-firmware-update[6802]-atmel_mxt_ts: Updater Firmware: 1.1.170
+chromeos-touch-firmware-update[6802]-atmel_mxt_ts: Firmware up to date.
+chromeos-touch-config-update[6802]-atmel_mxt_ts: Device config checksum : 7d7cf1
+chromeos-touch-config-update[6802]-atmel_mxt_ts: New config checksum : 7d7cf1
+chromeos-touch-config-update[6802]-atmel_mxt_ts: Config is up-to-date, no need to update
+
+Change-Id: <a href="https://chromium-review.googlesource.com/#/q/I1e8fc8d65eb733e02c5bc31727b6599db6575ad1">I1e8fc8d65eb733e02c5bc31727b6599db6575ad1</a>
+Reviewed-on: <a href="https://gerrit.chromium.org/gerrit/45373">https://gerrit.chromium.org/gerrit/45373</a>
+Reviewed-by: Daniel Kurtz <djkurtz@chromium.org>
+Commit-Queue: Benson Leung <bleung@chromium.org>
+Tested-by: Benson Leung <bleung@chromium.org>

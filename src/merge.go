@@ -1,4 +1,4 @@
-package Merge
+package src
 
 import (
 	"encoding/csv"
