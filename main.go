@@ -8,6 +8,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"sort"
 	"strings"
@@ -62,104 +63,32 @@ func run(parameters Parameters) error {
 	pt, err := devt.Get(ctx, devtool.Page)
 	if err != nil {
 		pt, err = devt.Create(ctx)
-		if err != nil {
-			return err
-		}
+		isError(err)
 	}
 
 	// Initiate a new RPC connection to the Chrome DevTools Protocol target.
 	conn, err := rpcc.DialContext(ctx, pt.WebSocketDebuggerURL)
-	if err != nil {
-		return err
-	}
+	isError(err)
+
 	defer conn.Close() // Leaving connections open will leak memory.
 
 	// Global cdp.Client is defined - Important to not redefine it
 	c = cdp.NewClient(conn)
 
-	// Open a DOMContentEventFired client to buffer this event.
-	domContent, err := c.Page.DOMContentEventFired(ctx)
-	if err != nil {
-		return err
-	}
-	defer domContent.Close()
-
-	// Enable events on the Page domain, it's often preferrable to create
-	// event clients before enabling events so that we don't miss any.
-	if err = c.Page.Enable(ctx); err != nil {
-		return err
-	}
-
-	// Function to navigate to a URL and return opened Document
-	OpenDoc := func(URL string, Referrer string) (*dom.GetDocumentReply, error) {
-		// Create the Navigate arguments with the optional Referrer field set.
-		navArgs := page.NewNavigateArgs(URL).
-			SetReferrer(Referrer)
-
-		nav, err := c.Page.Navigate(ctx, navArgs)
-		if err != nil {
-			return nil, err
-		}
-
-		// Wait until we have a DOMContentEventFired event.
-		if _, err = domContent.Recv(); err != nil {
-			return nil, err
-		}
-		fmt.Printf("Page loaded with frame ID: %s\n", nav.FrameID)
-
-		doc, err := c.DOM.GetDocument(ctx, nil)
-
-		return doc, err
-	}
-
 	// Navigate to repository
 	Link := parameters.URL
-	doc, err := OpenDoc(Link, "https://google.com")
-	if err != nil {
-		return err
-	}
+	doc := OpenDoc(c, Link, "https://google.com")
 
-	// Parse url for branch
-
-	// Get the outer HTML for the page.
-	QueryNodes, err := QuerySelectorAll(doc.Root.NodeID, "ul.RefList-items > li > a")
-
-	if err != nil {
-		return err
-	}
-	var branch string
-
-	// Search in Node for branch URL
-	for _, nodeId := range QueryNodes.NodeIDs {
-		result, err := GetOuterHTML(nodeId)
-
-		if err != nil {
-			return err
-		}
-
-		if strings.Contains(result.OuterHTML, parameters.branch) {
-			branch = strings.Split(result.OuterHTML, "\">")[0]
-			branch = strings.TrimLeft(branch, "<a href=\"")
-			break
-		}
-	}
+	branchURL := firstCommmitURL(doc.Root.NodeID, parameters.branch)
 
 	// Navigate to branch
-	Link = "https://chromium.googlesource.com" + branch
+	Link = "https://chromium.googlesource.com" + branchURL
 
-	doc, err = OpenDoc(Link, "https://google.com")
-	if err != nil {
-		return err
-	}
+	doc = OpenDoc(c, Link, "https://google.com")
 
 	// Get commit code for latest message
-	html, err := QueryHTML(doc.Root.NodeID, ".u-monospace.Metadata td")
+	commitCode := parseCommitCode(doc.Root.NodeID, ".u-monospace.Metadata td", "</td>")
 
-	if err != nil {
-		return err
-	}
-
-	commitCode := strings.Split(strings.TrimRight(html, "</td>"), ">")[1]
 	fmt.Println("Commit Code ", commitCode)
 
 	if parameters.URL[len(parameters.URL)-1] == '/' {
@@ -187,19 +116,10 @@ func run(parameters Parameters) error {
 		// Navigate to commit code url
 		Link := parameters.URL + commitCode
 
-		doc, err = OpenDoc(Link, "https://google.com")
-		if err != nil {
-			return err
-		}
-		// Get complete commit message
-		rawMessage, err := QueryHTML(doc.Root.NodeID, ".MetadataMessage")
-
-		if err != nil {
-			return err
-		}
+		doc = OpenDoc(c, Link, "https://google.com")
 
 		// Getting Commit Message and Contributors
-		commitMessage, newAuthors, newReviewers := parseMessage(rawMessage)
+		commitMessage, newAuthors, newReviewers := parseMessage(doc.Root.NodeID)
 
 		// Storing Contributors
 		authors = append(authors, newAuthors...)
@@ -207,22 +127,13 @@ func run(parameters Parameters) error {
 
 		// Writing Commit Message
 		textFile := parameters.commitsDir + "./Commits" + commitCode[0:6] + ".txt"
-		err = WriteMessage(textFile, commitMessage)
-
-		if err != nil {
-			return err
-		}
+		WriteMessage(textFile, commitMessage)
 
 		// Getting next commit code
 		search := strings.ReplaceAll(parameters.URL, "https://chromium.googlesource.com", "")
 
-		html, err = QueryHTML(doc.Root.NodeID, "a[href*='"+search+commitCode+"%5E']")
+		commitCode = parseCommitCode(doc.Root.NodeID, "a[href*='"+search+commitCode+"%5E']", "</a>")
 
-		if err != nil {
-			return err
-		}
-
-		commitCode = strings.Split(strings.TrimRight(html, "</a>"), ">")[1]
 		fmt.Println("Commit Code ", commitCode)
 
 	}
@@ -237,14 +148,76 @@ func run(parameters Parameters) error {
 	return nil
 }
 
-// Helper Functions
+func isError(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
+}
 
-func WriteMessage(fileName string, commitMessage []string) error {
+// Function to navigate to a URL and return opened Document
+func OpenDoc(client *cdp.Client, URL string, Referrer string) *dom.GetDocumentReply {
+	// Create the Navigate arguments with the optional Referrer field set.
+	navArgs := page.NewNavigateArgs(URL).
+		SetReferrer(Referrer)
+
+	nav, err := client.Page.Navigate(ctx, navArgs)
+	isError(err)
+
+	// Open a DOMContentEventFired client to buffer this event.
+	domContent, err := client.Page.DOMContentEventFired(ctx)
+	isError(err)
+	defer domContent.Close()
+
+	// Enable events on the Page domain
+	err = client.Page.Enable(ctx)
+	isError(err)
+
+	// Wait until we have a DOMContentEventFired event.
+	_, err = domContent.Recv()
+	isError(err)
+
+	fmt.Printf("Page loaded with frame ID: %s\n", nav.FrameID)
+
+	doc, err := client.DOM.GetDocument(ctx, nil)
+	isError(err)
+
+	return doc
+}
+
+func firstCommmitURL(NodeID dom.NodeID, branchName string) string {
+	// Parse url for branch
+
+	// Get the outer HTML for the page.
+	QueryNodes := QuerySelectorAll(NodeID, "ul.RefList-items > li > a")
+
+	var branchURL string
+
+	// Search in Node for branch URL
+	for _, nodeId := range QueryNodes.NodeIDs {
+		result := GetOuterHTML(nodeId)
+
+		if strings.Contains(result.OuterHTML, branchName) {
+			branchURL = strings.Split(result.OuterHTML, "\">")[0]
+			branchURL = strings.TrimLeft(branchURL, "<a href=\"")
+			break
+		}
+	}
+
+	return branchURL
+}
+
+func parseCommitCode(NodeID dom.NodeID, selector string, tag string) string {
+	html := QueryHTML(NodeID, selector)
+
+	commitCode := strings.Split(strings.TrimRight(html, tag), ">")[1]
+
+	return commitCode
+}
+
+func WriteMessage(fileName string, commitMessage []string) {
 	f, err := os.Create(fileName)
 
-	if err != nil {
-		return err
-	}
+	isError(err)
 
 	defer f.Close()
 	for _, message := range commitMessage {
@@ -252,47 +225,48 @@ func WriteMessage(fileName string, commitMessage []string) error {
 		f.WriteString("\n")
 	}
 
-	return nil
 }
 
-func QuerySelectorAll(NodeID dom.NodeID, Selector string) (*dom.QuerySelectorAllReply, error) {
+func QuerySelectorAll(NodeID dom.NodeID, Selector string) *dom.QuerySelectorAllReply {
 	QueryNodes, err := c.DOM.QuerySelectorAll(ctx, &dom.QuerySelectorAllArgs{
 		NodeID:   NodeID,
 		Selector: Selector,
 	})
-	return QueryNodes, err
+	isError(err)
+	return QueryNodes
 }
 
-func QuerySelector(NodeID dom.NodeID, Selector string) (*dom.QuerySelectorReply, error) {
+func QuerySelector(NodeID dom.NodeID, Selector string) *dom.QuerySelectorReply {
 	QueryNode, err := c.DOM.QuerySelector(ctx, &dom.QuerySelectorArgs{
 		NodeID:   NodeID,
 		Selector: Selector,
 	})
-	return QueryNode, err
+	isError(err)
+	return QueryNode
 }
 
-func GetOuterHTML(NodeId dom.NodeID) (*dom.GetOuterHTMLReply, error) {
+func GetOuterHTML(NodeId dom.NodeID) *dom.GetOuterHTMLReply {
 	result, err := c.DOM.GetOuterHTML(ctx, &dom.GetOuterHTMLArgs{
 		NodeID: &NodeId,
 	})
-	return result, err
+	isError(err)
+	return result
 }
 
 // Function to select a node and return html output for it
-func QueryHTML(NodeID dom.NodeID, Selector string) (string, error) {
-	QueryNode, err := QuerySelector(NodeID, Selector)
+func QueryHTML(NodeID dom.NodeID, Selector string) string {
+	QueryNode := QuerySelector(NodeID, Selector)
 
-	if err != nil {
-		return "", err
-	}
+	result := GetOuterHTML(QueryNode.NodeID)
 
-	result, err := GetOuterHTML(QueryNode.NodeID)
-
-	return result.OuterHTML, err
-
+	return result.OuterHTML
 }
 
-func parseMessage(rawMessage string) ([]string, []string, []string) {
+func parseMessage(NodeID dom.NodeID) ([]string, []string, []string) {
+
+	// Get complete commit message
+	rawMessage := QueryHTML(NodeID, ".MetadataMessage")
+
 	// Convert HTML characters
 	r := strings.NewReplacer("&lt;", "<", "&gt;", ">")
 
@@ -301,18 +275,23 @@ func parseMessage(rawMessage string) ([]string, []string, []string) {
 	commitMessage[0] = strings.Split(commitMessage[0], ">")[1]
 	commitMessage = commitMessage[:len(commitMessage)-1]
 
+	authors, reviewers := parseContributorStat(commitMessage)
+
+	return commitMessage, authors, reviewers
+}
+
+func parseContributorStat(commitMessage []string) ([]string, []string) {
 	var authors, reviewers []string
 
 	for _, value := range commitMessage {
 		if strings.Contains(value, "Tested-by:") && (value[0] == ' ' || value[0] == 'T') {
-			authors = append(authors, strings.TrimLeft(strings.Trim(value, " "), "Tested-by:")[1:])
+			authors = append(authors, strings.Split(value, "Tested-by: ")[1])
 		}
 
 		if strings.Contains(value, "Reviewed-by:") && (value[0] == ' ' || value[0] == 'R') {
-			reviewers = append(reviewers, strings.TrimLeft(strings.Trim(value, " "), "Reviewed-by:")[1:])
+			reviewers = append(reviewers, strings.Split(value, "Reviewed-by: ")[1])
 		}
-
 	}
 
-	return commitMessage, authors, reviewers
+	return authors, reviewers
 }

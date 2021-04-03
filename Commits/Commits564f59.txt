@@ -1,0 +1,16 @@
+video/platform_decoding: Add AV1 tests
+
+This change adds AV1 test cases to the platform_decoding test. For now,
+tests are restricted to 8-bit, profile 0 cases. Some cases are failing
+on some DUTs with the incorrect number of frames; it is unclear why. We
+intend to get more data on which devices are failing with this test.
+
+BUG=b:183021119
+TEST=tast run ${DUT_IP} video.PlatformDecoding.vaapi_av1
+
+Change-Id: <a href="https://chromium-review.googlesource.com/#/q/I98eb451f45f4c877fa9f0fd4da8c6f006fa12a8c">I98eb451f45f4c877fa9f0fd4da8c6f006fa12a8c</a>
+Reviewed-on: <a href="https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2800222">https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2800222</a>
+Reviewed-by: Jao-ke Chin-Lee <jchinlee@google.com>
+Reviewed-by: Keigo Oka <oka@chromium.org>
+Tested-by: Andres Calderon Jaramillo <andrescj@chromium.org>
+Commit-Queue: Andres Calderon Jaramillo <andrescj@chromium.org>
