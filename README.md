@@ -24,7 +24,7 @@ This Project implements scrapping of Git repositories on chromium for storing co
 Command Line Arguments that can be passed
 1. Commit Numbers by default `10`.  
   Can be specified by --commit-num
-2. Repository URL by default `http://chromium.googlesource.com/chromiumos/platform/tast-tests/`  
+2. Repository URL by default `https://chromium.googlesource.com/chromiumos/platform/tast-tests/`  
   Can be specified by --url
 3. Branch name by default `main`.  
   Can be specified by --branch

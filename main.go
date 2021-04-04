@@ -21,7 +21,7 @@ func main() {
 	flag.StringVar(&para.Branch, "branch", "main", "Branch Name")
 	flag.DurationVar(&para.Timeout, "timeout", 10*time.Second, "Maximum time program to run")
 	flag.StringVar(&para.CommitsDir, "commits-dir", "./Commits/", "Commit message folder path")
-	flag.StringVar(&para.ContributorDir, "contributor-dir", "./Commits", "Contributor CSV folder path")
+	flag.StringVar(&para.ContributorDir, "csv-dir", "./Commits", "Contributor CSV folder path")
 	flag.Parse()
 
 	err := src.Run(para)
