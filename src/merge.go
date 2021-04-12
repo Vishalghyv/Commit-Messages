@@ -2,32 +2,29 @@ package src
 
 import (
 	"encoding/csv"
-	"fmt"
 	"os"
-	"sort"
 	"strconv"
 )
 
 type Contributor struct {
-	name     string
 	created  int
 	reviewed int
 }
 
 // Main function to initalize varibale for use for merging and writing Contributors
-func MergeWrite(authors []string, reviewers []string, directory string) error {
+func WriteContributors(authors []string, reviewers []string, directory string) error {
 
 	filePath := directory + "./Contributors.csv"
 	// Creating CSV file
-	err := prepareCSV(filePath)
+	err := CreateFile(filePath)
 
 	if err != nil {
 		return err
 	}
 
-	contributors := merge(authors, reviewers)
+	contributors := mergeContributors(authors, reviewers)
 
-	err = writeFile(filePath, contributors)
+	err = writeMap(filePath, contributors)
 
 	if err != nil {
 		return err
@@ -36,10 +33,24 @@ func MergeWrite(authors []string, reviewers []string, directory string) error {
 	return nil
 }
 
-// Creates CSV and write header in it.
-func prepareCSV(filePath string) error {
+// Collects contributors stats from author and reviewers slices
+func mergeContributors(authors []string, reviewers []string) map[string]Contributor {
 
-	var file, err = os.Create(filePath)
+	contributors := make(map[string]Contributor)
+
+	for i := 0; i < len(authors); i++ {
+		contributors[authors[i]] = Contributor{created: contributors[authors[i]].created + 1, reviewed: contributors[authors[i]].reviewed}
+	}
+	for i := 0; i < len(reviewers); i++ {
+		contributors[reviewers[i]] = Contributor{created: contributors[reviewers[i]].created, reviewed: contributors[reviewers[i]].reviewed + 1}
+	}
+
+	return contributors
+}
+
+func writeMap(filePath string, contributors map[string]Contributor) error {
+	// Open file using Write mode.
+	var file, err = os.OpenFile(filePath, os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
@@ -55,110 +66,14 @@ func prepareCSV(filePath string) error {
 		"Reviewed",
 	})
 
-	return err
-}
-
-func writeFile(filePath string, contributors []Contributor) error {
-	// Open file using Append mode.
-	var file, err = os.OpenFile(filePath, os.O_APPEND, 0644)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	writer := csv.NewWriter(file)
-	defer writer.Flush()
-
-	// Write some text line-by-line to file.
-	for _, contributor := range contributors {
+	// Writing contributors stat line by line
+	for key, value := range contributors {
 		writer.Write([]string{
-			contributor.name,
-			strconv.Itoa(contributor.created),
-			strconv.Itoa(contributor.reviewed),
+			key,
+			strconv.Itoa(value.created),
+			strconv.Itoa(value.reviewed),
 		})
-
 	}
 
 	return err
-}
-
-// Appends new name in contributors slice
-func appendNew(previous Contributor, name string, contributors []Contributor) (Contributor, []Contributor) {
-	if previous.name != name {
-		contributors = append(contributors, previous)
-		previous = Contributor{}
-		previous.name = name
-	}
-	return previous, contributors
-}
-
-// Collects contributors stats from author and reviewers slices
-func merge(authors []string, reviewers []string) []Contributor {
-
-	// Sort Authors and Reviewers
-	sort.Strings(authors)
-	sort.Strings(reviewers)
-
-	contributors := []Contributor{}
-	previous := Contributor{}
-	var i, j int
-
-	// Merging and Writing Sorted authors and reviewers in csv file
-	for i < len(authors) && j < len(reviewers) {
-		if authors[i] < reviewers[j] {
-			previous, contributors = appendNew(previous, authors[i], contributors)
-			previous.created++
-			i++
-		} else if authors[i] > reviewers[j] {
-			previous, contributors = appendNew(previous, reviewers[j], contributors)
-			previous.reviewed++
-			j++
-		} else {
-			previous, contributors = appendNew(previous, authors[i], contributors)
-			previous.created++
-			previous.reviewed++
-			i++
-			j++
-		}
-
-	}
-
-	if contributors[0].name == "" {
-		contributors = contributors[1:]
-	}
-
-	// Writing Rest of Contributors in CSV file
-	contributorType := "a"
-	previous, contributors = copyContributors(contributors, previous, authors[i:], contributorType)
-
-	contributorType = "r"
-	previous, contributors = copyContributors(contributors, previous, reviewers[j:], contributorType)
-
-	// Check for last contributor
-	if previous.name != contributors[len(contributors)-1].name {
-		contributors = append(contributors, previous)
-	}
-
-	fmt.Println("Contributors", contributors)
-	return contributors
-}
-
-// Appends contributors stats from single slice
-func copyContributors(contributors []Contributor, previous Contributor, names []string, nameType string) (Contributor, []Contributor) {
-	var i = 0
-	for ; i < len(names); i++ {
-		if i == len(names)-1 && previous.name == names[i] {
-			previous.created++
-			contributors = append(contributors, previous)
-		}
-
-		previous, contributors = appendNew(previous, names[i], contributors)
-
-		if nameType == "a" {
-			previous.created++
-		} else {
-			previous.reviewed++
-		}
-	}
-	return previous, contributors
 }

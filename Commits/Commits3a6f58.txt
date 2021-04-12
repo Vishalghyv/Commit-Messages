@@ -1,0 +1,16 @@
+nearbyshare: collect BT HCI logs in local tests
+
+Collect BT HCI logs using the `btmon` command. Log collection runs for
+the duration of each test, and the logs will be saved as
+nearby_btsnoop_cros.log in each test's result directory.
+
+BUG=chromium:1195065
+TEST=tast run nearbyshare.*Phone* and check that new logs are there
+
+Change-Id: <a href="https://chromium-review.googlesource.com/#/q/I1cd292154e417bd368ca7bff7df82dee11577424">I1cd292154e417bd368ca7bff7df82dee11577424</a>
+Reviewed-on: <a href="https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2808711">https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2808711</a>
+Commit-Queue: Kyle Shimabukuro <kyleshima@chromium.org>
+Tested-by: Kyle Shimabukuro <kyleshima@chromium.org>
+Reviewed-by: Victor-Gabriel Savu <vsavu@google.com>
+Reviewed-by: David Haddock <dhaddock@chromium.org>
+

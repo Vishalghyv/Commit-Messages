@@ -1,0 +1,17 @@
+wifi.Driver: extend support to kernel 5.10
+
+New platforms and -kernelnext boards may be moving to these kernels.
+These chips are all still supported and their drivers are intact on
+kernel 5.10.
+
+BUG=none
+TEST=run it
+
+Change-Id: <a href="https://chromium-review.googlesource.com/#/q/I23155b1e23fcdaf3022f0e9309c19f27d07ef65c">I23155b1e23fcdaf3022f0e9309c19f27d07ef65c</a>
+Reviewed-on: <a href="https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2811581">https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2811581</a>
+Tested-by: Brian Norris <briannorris@chromium.org>
+Reviewed-by: Billy Zhao <billyzhao@chromium.org>
+Reviewed-by: Alexander Hartl <alexanderhartl@google.com>
+Reviewed-by: Abhishek Kumar <kuabhs@chromium.org>
+Commit-Queue: Brian Norris <briannorris@chromium.org>
+

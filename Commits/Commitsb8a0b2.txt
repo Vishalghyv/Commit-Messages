@@ -1,0 +1,16 @@
+diag.FailDNSResolution: add test
+
+This change adds a new test that creates a failure condition for the DNS
+resolution network routine, by setting bogus domain name servers.
+
+BUG=chromium:1178896
+TEST=tast run hatch-dut network.DiagFail* (pass)
+
+Change-Id: <a href="https://chromium-review.googlesource.com/#/q/I760a8be5ffcd241629472c72b0e46df287666ab3">I760a8be5ffcd241629472c72b0e46df287666ab3</a>
+Reviewed-on: <a href="https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2797633">https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2797633</a>
+Tested-by: Trent Begin <tbegin@chromium.org>
+Commit-Queue: Trent Begin <tbegin@chromium.org>
+Reviewed-by: Kartik Hegde <khegde@chromium.org>
+Reviewed-by: Steven Bennetts <stevenjb@chromium.org>
+Reviewed-by: Jun Sheng <shengjun@chromium.org>
+

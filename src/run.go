@@ -53,7 +53,7 @@ func Run(parameters Parameters) error {
 	rootNodeID = GetRootNodeID(ctx, domClient)
 
 	// Get commit code for latest message
-	commitCode := parseCommitCode(ctx, domClient, rootNodeID, ".u-monospace.Metadata td", "</td>")
+	commitCode := InnerHTML(ctx, domClient, rootNodeID, ".u-monospace.Metadata td", "</td>")
 	fmt.Println("Commit Code ", commitCode)
 
 	if parameters.URL[len(parameters.URL)-1] == '/' {
@@ -62,9 +62,10 @@ func Run(parameters Parameters) error {
 		parameters.URL += "/+/"
 	}
 
+	searchURL := strings.ReplaceAll(parameters.URL, "https://chromium.googlesource.com", "")
+
 	// Creation of directory for commit messages and contributor csv file
 	createDir(parameters.CommitsDir)
-
 	createDir(parameters.ContributorDir)
 
 	// Store contributors
@@ -82,38 +83,22 @@ func Run(parameters Parameters) error {
 		commitMessage, newAuthors, newReviewers := parseMessage(ctx, domClient, rootNodeID)
 
 		// Write Commit Message
-		filePath := parameters.CommitsDir + "./Commits" + commitCode[0:6] + ".txt"
-		WriteMessage(filePath, commitMessage)
+		WriteMessage(parameters.CommitsDir, commitCode[0:6], commitMessage)
 
 		// Store Contributors
 		authors = append(authors, newAuthors...)
 		reviewers = append(reviewers, newReviewers...)
 
 		// Get next commit code
-		search := strings.ReplaceAll(parameters.URL, "https://chromium.googlesource.com", "")
-
-		commitCode = parseCommitCode(ctx, domClient, rootNodeID, "a[href*='"+search+commitCode+"%5E']", "</a>")
-
+		commitCode = InnerHTML(ctx, domClient, rootNodeID, "a[href*='"+searchURL+commitCode+"%5E']", "</a>")
 		fmt.Println("Commit Code ", commitCode)
 
 	}
 
-	// Merging and Writing contributors in CSV
-	MergeWrite(authors, reviewers, parameters.ContributorDir)
+	// Writing contributors in CSV
+	WriteContributors(authors, reviewers, parameters.ContributorDir)
 
 	return nil
-}
-
-func createDir(path string) {
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		os.Mkdir(path, os.ModeDir|0755)
-	}
-}
-
-func isError(err error) {
-	if err != nil {
-		log.Fatal(err)
-	}
 }
 
 // navigate to the URL and wait for DOMContentEventFired
@@ -138,9 +123,13 @@ func navigate(ctx context.Context, client *cdp.Client, URL string) {
 }
 
 // Write Commit messages
-func WriteMessage(fileName string, commitMessage []string) {
-	f, err := os.Create(fileName)
+func WriteMessage(CommitsDir string, CommitCode string, commitMessage []string) {
+	filePath := CommitsDir + "Commits" + CommitCode + ".txt"
 
+	err := CreateFile(filePath)
+	isError(err)
+
+	f, err := os.OpenFile(filePath, os.O_WRONLY, 0644)
 	isError(err)
 
 	defer f.Close()
@@ -150,4 +139,28 @@ func WriteMessage(fileName string, commitMessage []string) {
 		isError(err)
 	}
 
+}
+
+// Creates File.
+func CreateFile(filePath string) error {
+
+	var file, err = os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	file.Name()
+	return nil
+}
+
+func isError(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func createDir(path string) {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		os.Mkdir(path, os.ModeDir|0755)
+	}
 }

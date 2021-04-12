@@ -1,0 +1,26 @@
+platform.BootPerf: Use RTC as a reference clock to measure reboot time
+
+The system clock is not guaranteed to run in S5, and is likely
+resynchronized from RTC on boot, leading to inaccurate reboot time
+measurements.
+
+We leave behind the old code that uses system clock for now, and
+will drop it once we convince ourselves the RTC approach is
+more accurate.
+
+Also, do not even attempt to compute "seconds_shutdown_time"
+using RTC, we'll measure this differently in a follow-up CL.
+
+BUG=b:181084968
+TEST=tast run -var=platform.BootPerf.iterations=10 \
+              -var=platform.BootPerf.skipRootfsCheck=true \
+              $IP platform.BootPerf
+
+Cq-Depend: chromium:2744972
+Change-Id: <a href="https://chromium-review.googlesource.com/#/q/I4c7b79102c4c831d32c50b8f33bf2cb8df89d8b5">I4c7b79102c4c831d32c50b8f33bf2cb8df89d8b5</a>
+Reviewed-on: <a href="https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2745048">https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2745048</a>
+Reviewed-by: Chinglin Yu <chinglinyu@chromium.org>
+Reviewed-by: Katherine Threlkeld <kathrelkeld@chromium.org>
+Commit-Queue: Nicolas Boichat <drinkcat@chromium.org>
+Tested-by: Nicolas Boichat <drinkcat@chromium.org>
+

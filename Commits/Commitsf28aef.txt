@@ -1,1 +1,0 @@
-init touch_updater repo

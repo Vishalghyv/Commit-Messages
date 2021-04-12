@@ -1,0 +1,20 @@
+Add CheckIntelSARTable to wifi_matfunc
+
+CheckIntelSARTable is in bvt-tast-cq and should also be in wifi_matfunc
+for consistency.
+
+BUG=b:181060056
+TEST=tast list $DUT '("group:wificell" &amp;&amp; wificell_func)' | grep
+CheckIntelSARTable
+TEST=tast list $DUT '("group:mainline" &amp;&amp; !informational &amp;&amp;
+!"dep:chrome" &amp;&amp; !"dep:plugin_vm" &amp;&amp; !"name:crostini.*" &amp;&amp;
+!"dep:android*")' | grep CheckIntelSARTable
+
+Change-Id: <a href="https://chromium-review.googlesource.com/#/q/I33dd23954a7c4ad4117a6fd3dc26f480e9fd1fd4">I33dd23954a7c4ad4117a6fd3dc26f480e9fd1fd4</a>
+Reviewed-on: <a href="https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2818820">https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2818820</a>
+Commit-Queue: Nicolas Norvez <norvez@chromium.org>
+Commit-Queue: Shuo-Peng Liao <deanliao@chromium.org>
+Tested-by: Nicolas Norvez <norvez@chromium.org>
+Auto-Submit: Nicolas Norvez <norvez@chromium.org>
+Reviewed-by: Shuo-Peng Liao <deanliao@chromium.org>
+

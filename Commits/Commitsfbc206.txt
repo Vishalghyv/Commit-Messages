@@ -1,0 +1,18 @@
+platform.BootPerf: Improve variable naming in GatherRebootMetrics
+
+We obtain times in 2 different clock sources (and are about to
+add a third one), let's try to clarify the source of each
+variable with better naming.
+
+BUG=b:181084968
+TEST=tast run -var=platform.BootPerf.iterations=10 \
+              -var=platform.BootPerf.skipRootfsCheck=true \
+              $IP platform.BootPerf
+
+Change-Id: <a href="https://chromium-review.googlesource.com/#/q/Ib2d278cd98b0ad8718d0516a47377fa5efd014de">Ib2d278cd98b0ad8718d0516a47377fa5efd014de</a>
+Reviewed-on: <a href="https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2804271">https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2804271</a>
+Tested-by: Nicolas Boichat <drinkcat@chromium.org>
+Reviewed-by: Chinglin Yu <chinglinyu@chromium.org>
+Reviewed-by: Shuhei Takahashi <nya@chromium.org>
+Commit-Queue: Nicolas Boichat <drinkcat@chromium.org>
+

@@ -1,0 +1,11 @@
+upstart: Add functions to disable/enable upstart jobs
+
+BUG=b:153736350
+TEST=CQ passes
+
+Change-Id: <a href="https://chromium-review.googlesource.com/#/q/I2f6830c57bbb16195616c4702a14d0f084b50ff8">I2f6830c57bbb16195616c4702a14d0f084b50ff8</a>
+Reviewed-on: <a href="https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2811938">https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2811938</a>
+Commit-Queue: Tom Hughes <tomhughes@chromium.org>
+Tested-by: Tom Hughes <tomhughes@chromium.org>
+Reviewed-by: Gabor Zsolt Magda <gabormagda@google.com>
+

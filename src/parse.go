@@ -12,7 +12,11 @@ import (
 func getBranchURL(ctx context.Context, domClient cdp.DOM, RootID dom.NodeID, branchName string) string {
 
 	var branchURL string
-	QueryNodes := QuerySelectorAll(ctx, domClient, RootID, "ul.RefList-items > li > a")
+	QueryNodes, err := domClient.QuerySelectorAll(ctx, &dom.QuerySelectorAllArgs{
+		NodeID:   RootID,
+		Selector: "ul.RefList-items > li > a",
+	})
+	isError(err)
 
 	// Search in Nodes for branch URL
 	for _, nodeId := range QueryNodes.NodeIDs {
@@ -30,39 +34,19 @@ func getBranchURL(ctx context.Context, domClient cdp.DOM, RootID dom.NodeID, bra
 	return branchURL
 }
 
-// Return commit code as per tag
-func parseCommitCode(ctx context.Context, domClient cdp.DOM, NodeID dom.NodeID, selector string, tag string) string {
-	html := QueryHTML(ctx, domClient, NodeID, selector)
-
-	commitCode := strings.Split(strings.TrimRight(html, tag), ">")[1]
-
-	return commitCode
-}
-
 // Pareses message and return commit message and contributors stat
 func parseMessage(ctx context.Context, domClient cdp.DOM, NodeID dom.NodeID) ([]string, []string, []string) {
 
 	// Get complete commit message
-	rawMessage := QueryHTML(ctx, domClient, NodeID, ".MetadataMessage")
-
-	commitMessage := getCommitMessage(rawMessage)
-
-	authors, reviewers := parseContributorStat(commitMessage)
-
-	return commitMessage, authors, reviewers
-}
-
-// Modifies raw message and returns commit message from it
-func getCommitMessage(rawMessage string) []string {
-	// Convert HTML characters
+	rawMessage := InnerHTML(ctx, domClient, NodeID, ".MetadataMessage", "</pre>")
+	// fmt.Println(rawMessage)
 	r := strings.NewReplacer("&lt;", "<", "&gt;", ">")
 
 	commitMessage := strings.Split(r.Replace(rawMessage), "\n")
 
-	commitMessage[0] = strings.Split(commitMessage[0], ">")[1]
-	commitMessage = commitMessage[:len(commitMessage)-1]
+	authors, reviewers := parseContributorStat(commitMessage)
 
-	return commitMessage
+	return commitMessage, authors, reviewers
 }
 
 // Loops thorugh commit message and return contributors stats

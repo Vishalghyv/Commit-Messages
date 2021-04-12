@@ -1,0 +1,45 @@
+Revert "security.StatefulFules: add structured metrics directories"
+
+This reverts commit 966a475eb335a44b7b816b1a187642892f8d67b3.
+
+Reason for revert:
+Fails on betty-pi-arc-release
+<a href="https://ci.chromium.org/ui/p/chromeos/builders/general/LegacyRelease/b8850452674047442896/overview">https://ci.chromium.org/ui/p/chromeos/builders/general/LegacyRelease/b8850452674047442896/overview</a>
+
+Original change's description:
+> security.StatefulFules: add structured metrics directories
+>
+> The directories storing structured metrics data have different permissions
+> to the rest of /var/lib/metrics, this CL updates the stateful files test.
+>
+> Notes:
+> - /var/lib/metrics/structured/events is intended to have mode 2777, but
+>   AFAICT checking for gid bit isn't support by chk.Mode, so I've left it
+>   out.
+>
+> - There's a quirk in the metrics init files that mean uma-events can be
+>   owned by either metrics [1] or chronos [2] depending on whether the
+>   metrics daemon is enabled. Either of these seem fine, and it might
+>   change as we tweak the init files. So I've allowed either user.
+>
+> [1] <a href="https://source.chromium.org/chromiumos/chromiumos/codesearch/+/main:src/platform2/metrics/init/metrics_daemon.conf;l=34">https://source.chromium.org/chromiumos/chromiumos/codesearch/+/main:src/platform2/metrics/init/metrics_daemon.conf;l=34</a>
+> [2] <a href="https://source.chromium.org/chromiumos/chromiumos/codesearch/+/main:src/platform2/metrics/init/metrics_library.conf;l=31">https://source.chromium.org/chromiumos/chromiumos/codesearch/+/main:src/platform2/metrics/init/metrics_library.conf;l=31</a>
+>
+> BUG=chromium:1148168
+> TEST=tast run ... security.StatefulFiles
+>
+> Change-Id: <a href="https://chromium-review.googlesource.com/#/q/I72a3805c9e51dd69e486a9c5efc25a239b716fa4">I72a3805c9e51dd69e486a9c5efc25a239b716fa4</a>
+> Reviewed-on: <a href="https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2790764">https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2790764</a>
+> Tested-by: Tony Yeoman <tby@chromium.org>
+> Reviewed-by: Jorge Lucangeli Obes <jorgelo@chromium.org>
+> Reviewed-by: Ben Reich <benreich@chromium.org>
+> Commit-Queue: Tony Yeoman <tby@chromium.org>
+
+Bug: chromium:1148168
+Bug: chromium:1197569
+Change-Id: <a href="https://chromium-review.googlesource.com/#/q/I887de3694f6519e4c1f59429871d6bcc5f092c92">I887de3694f6519e4c1f59429871d6bcc5f092c92</a>
+Reviewed-on: <a href="https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2818618">https://chromium-review.googlesource.com/c/chromiumos/platform/tast-tests/+/2818618</a>
+Auto-Submit: Xiyuan Xia <xiyuan@chromium.org>
+Bot-Commit: Rubber Stamper <rubber-stamper@appspot.gserviceaccount.com>
+Commit-Queue: Xiyuan Xia <xiyuan@chromium.org>
+
