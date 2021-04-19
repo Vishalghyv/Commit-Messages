@@ -111,39 +111,21 @@ Navigate to next commit code
 
 	}
 ```
-### Algorithim to Merge and Write Contributors data in CSV file
+### Function to Merge Contributors
 
 ```
-   type Contributor struct {
-      name string
-      created int 
-      reviewed int
-   }
-   
-   -> sorted authors and reviewrs slice
-   -> last of type Contributor intialized with first smallest name
-  
-   for i < len(authors) && j < len(reviewers) {
-		if (authors[i] < reviewers[j]) {
-			Insert author[i]
-			i++
-		} else if (authors[i] > reviewers[j]) {
-			Insert reviewer[i]
-			j++
-		} else {
-			Increase both created and reviewed count
-			i++
-			j++
-		}
-	} 
+   // Collects contributors stats from author and reviewers slices
+   func mergeContributors(authors []string, reviewers []string) map[string]Contributor {
 
-	for i < len(authors) {
-		Insert left authors
-		i++
+	contributors := make(map[string]Contributor)
+
+	for i := 0; i < len(authors); i++ {
+		contributors[authors[i]] = Contributor{created: contributors[authors[i]].created + 1, reviewed: contributors[authors[i]].reviewed}
+	}
+	for i := 0; i < len(reviewers); i++ {
+		contributors[reviewers[i]] = Contributor{created: contributors[reviewers[i]].created, reviewed: contributors[reviewers[i]].reviewed + 1}
 	}
 
-	for j < len(reviewers) {
-		Insert left reviewers
-		j++
-	}
+	return contributors
+  }
 ```
